@@ -1,0 +1,276 @@
+.portfolio {
+    padding: 20px;
+}
+
+.portfolio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.portfolio-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #333;
+}
+
+.add-transaction-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s;
+}
+
+.add-transaction-btn:hover {
+    background-color: #218838;
+}
+
+.portfolio-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.summary-card h3 {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.summary-card p {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin: 0;
+}
+
+.summary-card p.positive {
+    color: #28a745;
+}
+
+.summary-card p.negative {
+    color: #dc3545;
+}
+
+.transaction-form-container {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+.transaction-form h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.transaction-form input,
+.transaction-form select {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.transaction-form input:focus,
+.transaction-form select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.submit-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+    background-color: #0056b3;
+}
+
+.cancel-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.cancel-btn:hover {
+    background-color: #545b62;
+}
+
+.portfolio-holdings {
+    margin-bottom: 30px;
+}
+
+.portfolio-holdings h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.holdings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.holding-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.holding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.holding-symbol {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+.holding-type {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #666;
+    font-size: 14px;
+}
+
+.holding-details p {
+    margin: 8px 0;
+    color: #666;
+}
+
+.transaction-history h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.transactions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.transaction-item {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.transaction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.transaction-symbol {
+    font-weight: bold;
+    color: #333;
+}
+
+.transaction-type {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.transaction-type.buy {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.transaction-type.sell {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.transaction-details p {
+    margin: 5px 0;
+    color: #666;
+}
+
+.transaction-date {
+    font-size: 12px;
+    color: #999;
+}
+
+.loading {
+    text-align: center;
+    padding: 50px;
+    color: #666;
+    font-size: 18px;
+}
+
+@media (max-width: 768px) {
+    .portfolio-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .holdings-grid {
+        grid-template-columns: 1fr;
+    }
+} 
