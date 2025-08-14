@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaSearch, FaBitcoin, FaChartLine, FaGlobe, FaGithub } from 'react-icons/fa';
+import { FaSearch, FaBitcoin, FaGlobe, FaGithub } from 'react-icons/fa';
 import './Crypto.css';
 
 const Crypto = () => {

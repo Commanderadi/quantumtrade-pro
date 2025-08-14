@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaPlus, FaMinus, FaChartLine, FaBitcoin, FaDollarSign, FaWallet } from 'react-icons/fa';
-import PortfolioAnalytics from './PortfolioAnalytics';
+import { FaPlus, FaChartLine, FaBitcoin, FaWallet } from 'react-icons/fa';
 import './Portfolio.css';
 
 const Portfolio = () => {
@@ -23,11 +22,7 @@ const Portfolio = () => {
         return { headers: { 'x-auth-token': token } };
     };
 
-    useEffect(() => {
-        fetchPortfolioData();
-    }, []);
-
-    const fetchPortfolioData = async () => {
+    const fetchPortfolioData = useCallback(async () => {
         try {
             const [portfolioRes, transactionsRes, summaryRes] = await Promise.all([
                 axios.get('/api/portfolio', getAuthHeaders()),
@@ -43,7 +38,11 @@ const Portfolio = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchPortfolioData();
+    }, [fetchPortfolioData]);
 
     const handleTransactionSubmit = async (e) => {
         e.preventDefault();

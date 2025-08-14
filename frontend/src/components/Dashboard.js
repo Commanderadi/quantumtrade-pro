@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaSearch, FaPlus, FaTimes, FaChartLine, FaBitcoin } from 'react-icons/fa';
-import StockChart from './StockChart';
+import { FaSearch, FaPlus, FaTimes, FaChartLine, FaBitcoin, FaStar, FaArrowUp } from 'react-icons/fa';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -21,9 +20,7 @@ const Dashboard = () => {
 
     // State for top cryptos
     const [topCryptos, setTopCryptos] = useState([]);
-    // State for selected symbol for chart
-    const [selectedSymbol, setSelectedSymbol] = useState('');
-    const [selectedType, setSelectedType] = useState('stock');
+
 
     // A helper function to create the authorization headers for API calls
     const getAuthHeaders = () => {
@@ -101,180 +98,188 @@ const Dashboard = () => {
         }
     };
 
-    // Handles adding a stock to the user's watchlist
-    const handleAddToWatchlist = async (symbolToAdd) => {
+    // Handles adding a stock to watchlist
+    const handleAddToWatchlist = async (symbol, type) => {
         try {
-            await axios.post('/api/watchlist', { symbol: symbolToAdd }, getAuthHeaders());
-            
-            if (!watchlist.includes(symbolToAdd)) {
-                setWatchlist([...watchlist, symbolToAdd]);
-            }
-            setStockData(null);
-            setSymbol('');
+            await axios.post('/api/watchlist', { symbol, type }, getAuthHeaders());
+            // Refresh watchlist
+            const response = await axios.get('/api/watchlist', getAuthHeaders());
+            setWatchlist(response.data);
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to add to watchlist.');
+            console.error('Failed to add to watchlist:', err);
         }
     };
 
-    // Handles removing a stock from the user's watchlist
-    const handleRemoveFromWatchlist = async (symbolToRemove) => {
+    // Handles removing a stock from watchlist
+    const handleRemoveFromWatchlist = async (symbol) => {
         try {
-            await axios.delete(`/api/watchlist/${symbolToRemove}`, getAuthHeaders());
-            setWatchlist(watchlist.filter(s => s !== symbolToRemove));
+            await axios.delete(`/api/watchlist/${symbol}`, getAuthHeaders());
+            // Refresh watchlist
+            const response = await axios.get('/api/watchlist', getAuthHeaders());
+            setWatchlist(response.data);
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to remove from watchlist.');
+            console.error('Failed to remove from watchlist:', err);
         }
     };
 
     return (
         <div className="dashboard">
+            {/* Welcome Section */}
             <div className="dashboard-header">
-                <h2>Market Analytics Dashboard</h2>
-                <p>Real-time market data and portfolio insights</p>
+                <h1>Welcome to TradePro Dashboard</h1>
+                <p>Your comprehensive financial intelligence platform</p>
             </div>
+
+            {/* Quick Actions Grid */}
+            <div className="quick-actions">
+                <div className="action-card">
+                    <FaSearch className="action-icon" />
+                    <h3>Stock Search</h3>
+                    <p>Search for stocks and view real-time data</p>
+                </div>
+                <div className="action-card">
+                    <FaBitcoin className="action-icon" />
+                    <h3>Crypto Search</h3>
+                    <p>Explore cryptocurrency markets</p>
+                </div>
+                <div className="action-card">
+                    <FaStar className="action-icon" />
+                    <h3>Watchlist</h3>
+                    <p>Track your favorite assets</p>
+                </div>
+                <div className="action-card">
+                    <FaChartLine className="action-icon" />
+                    <h3>Technical Analysis</h3>
+                    <p>Advanced charting and indicators</p>
+                </div>
+            </div>
+
+            {/* Main Content Grid */}
             <div className="dashboard-grid">
-                {/* Watchlist Widget */}
-                <div className="dashboard-widget">
-                    <h3><FaChartLine /> My Watchlist</h3>
-                    {watchlistError && <p className="message error">{watchlistError}</p>}
-                    {watchlist.length > 0 ? (
-                        <ul className="watchlist-list">
-                            {watchlist.map(stockSymbol => (
-                                <li key={stockSymbol}>
-                                    <span>{stockSymbol}</span>
+                {/* Stock Search Section */}
+                <div className="dashboard-section">
+                    <h2><FaSearch /> Stock Search</h2>
+                    <form onSubmit={handleStockSearch} className="search-form">
+                        <div className="search-input-group">
+                            <input
+                                type="text"
+                                value={symbol}
+                                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                                placeholder="Enter stock symbol (e.g., AAPL)"
+                                className="search-input"
+                            />
+                            <button type="submit" className="search-button">
+                                <FaSearch />
+                            </button>
+                        </div>
+                    </form>
+
+                    {searchError && <div className="error-message">{searchError}</div>}
+                    
+                    {stockData && (
+                        <div className="stock-result">
+                            <div className="stock-info">
+                                <h3>{stockData.symbol}</h3>
+                                <p className="stock-price">${stockData.price}</p>
+                                <p className="stock-change">{stockData.change} ({stockData.changePercent}%)</p>
+                            </div>
+                            <button 
+                                onClick={() => handleAddToWatchlist(stockData.symbol, 'stock')}
+                                className="add-watchlist-btn"
+                            >
+                                <FaPlus /> Add to Watchlist
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Crypto Search Section */}
+                <div className="dashboard-section">
+                    <h2><FaBitcoin /> Crypto Search</h2>
+                    <form onSubmit={handleCryptoSearch} className="search-form">
+                        <div className="search-input-group">
+                            <input
+                                type="text"
+                                value={cryptoSymbol}
+                                onChange={(e) => setCryptoSymbol(e.target.value.toUpperCase())}
+                                placeholder="Enter crypto symbol (e.g., BTC)"
+                                className="search-input"
+                            />
+                            <button type="submit" className="search-button">
+                                <FaSearch />
+                            </button>
+                        </div>
+                    </form>
+
+                    {cryptoError && <div className="error-message">{cryptoError}</div>}
+                    
+                    {cryptoData && (
+                        <div className="crypto-result">
+                            <div className="crypto-info">
+                                <h3>{cryptoData.symbol}</h3>
+                                <p className="crypto-price">${cryptoData.price}</p>
+                                <p className="crypto-change">{cryptoData.change24h} ({cryptoData.changePercent24h}%)</p>
+                            </div>
+                            <button 
+                                onClick={() => handleAddToWatchlist(cryptoData.symbol, 'crypto')}
+                                className="add-watchlist-btn"
+                            >
+                                <FaPlus /> Add to Watchlist
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Watchlist Section */}
+                <div className="dashboard-section">
+                    <h2><FaStar /> Your Watchlist</h2>
+                    {watchlistError ? (
+                        <p className="error-message">{watchlistError}</p>
+                    ) : watchlist.length === 0 ? (
+                        <p className="empty-state">No items in watchlist. Add some stocks or cryptos!</p>
+                    ) : (
+                        <div className="watchlist-items">
+                            {watchlist.map((item, index) => (
+                                <div key={index} className="watchlist-item">
+                                    <div className="item-info">
+                                        <span className="item-symbol">{item.symbol}</span>
+                                        <span className="item-type">{item.type}</span>
+                                    </div>
                                     <button 
-                                        onClick={() => handleRemoveFromWatchlist(stockSymbol)} 
+                                        onClick={() => handleRemoveFromWatchlist(item.symbol)}
                                         className="remove-btn"
                                     >
                                         <FaTimes />
                                     </button>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>Your watchlist is empty. Search for a stock to add it.</p>
-                    )}
-                </div>
-
-                {/* Stock Search Widget */}
-                <div className="dashboard-widget">
-                    <h3><FaChartLine /> Stock Price Finder</h3>
-                    <form onSubmit={handleStockSearch}>
-                        <div className="search-input">
-                            <input
-                                type="text"
-                                placeholder="Enter Stock Symbol (e.g., AAPL)"
-                                value={symbol}
-                                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                            />
-                            <button type="submit"><FaSearch /></button>
-                        </div>
-                    </form>
-
-                    {searchError && <p className="message error">{searchError}</p>}
-                    
-                    {stockData && (
-                        <div className="stock-info">
-                            <h4>{stockData.symbol}</h4>
-                            <p><strong>Price:</strong> ${parseFloat(stockData.price).toFixed(2)}</p>
-                            <p>
-                                <strong>Change:</strong>
-                                <span style={{ color: parseFloat(stockData.change) >= 0 ? 'green' : 'red' }}>
-                                    {parseFloat(stockData.change).toFixed(2)} ({stockData.changePercent})
-                                </span>
-                            </p>
-                            {stockData.volume && <p><strong>Volume:</strong> {parseInt(stockData.volume).toLocaleString()}</p>}
-                            <button onClick={() => handleAddToWatchlist(stockData.symbol)} className="add-btn">
-                                <FaPlus /> Add to Watchlist
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setSelectedSymbol(stockData.symbol);
-                                    setSelectedType('stock');
-                                }} 
-                                className="chart-btn"
-                            >
-                                <FaChartLine /> View Chart
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Crypto Search Widget */}
-                <div className="dashboard-widget">
-                    <h3><FaBitcoin /> Crypto Price Finder</h3>
-                    <form onSubmit={handleCryptoSearch}>
-                        <div className="search-input">
-                            <input
-                                type="text"
-                                placeholder="Enter Crypto Symbol (e.g., bitcoin)"
-                                value={cryptoSymbol}
-                                onChange={(e) => setCryptoSymbol(e.target.value.toLowerCase())}
-                            />
-                            <button type="submit"><FaSearch /></button>
-                        </div>
-                    </form>
-
-                    {cryptoError && <p className="message error">{cryptoError}</p>}
-                    
-                    {cryptoData && (
-                        <div className="crypto-info">
-                            <h4>{cryptoData.symbol}</h4>
-                            <p><strong>Price:</strong> ${parseFloat(cryptoData.price).toFixed(2)}</p>
-                            <p>
-                                <strong>24h Change:</strong>
-                                <span style={{ color: parseFloat(cryptoData.change24h) >= 0 ? 'green' : 'red' }}>
-                                    {parseFloat(cryptoData.change24h).toFixed(2)}% ({cryptoData.changePercent})
-                                </span>
-                            </p>
-                            {cryptoData.volume24h && <p><strong>24h Volume:</strong> ${parseInt(cryptoData.volume24h).toLocaleString()}</p>}
-                            {cryptoData.marketCap && <p><strong>Market Cap:</strong> ${parseInt(cryptoData.marketCap).toLocaleString()}</p>}
-                            <button onClick={() => handleAddToWatchlist(cryptoData.symbol)} className="add-btn">
-                                <FaPlus /> Add to Watchlist
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setSelectedSymbol(cryptoData.symbol);
-                                    setSelectedType('crypto');
-                                }} 
-                                className="chart-btn"
-                            >
-                                <FaChartLine /> View Chart
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Top Cryptos Widget */}
-                <div className="dashboard-widget">
-                    <h3><FaBitcoin /> Top Cryptocurrencies</h3>
-                    {topCryptos.length > 0 ? (
-                        <div className="top-cryptos">
-                            {topCryptos.map((crypto, index) => (
-                                <div key={crypto.symbol} className="crypto-item">
-                                    <span className="crypto-rank">#{index + 1}</span>
-                                    <span className="crypto-symbol">{crypto.symbol}</span>
-                                    <span className="crypto-price">${crypto.price.toFixed(2)}</span>
-                                    <span 
-                                        className={`crypto-change ${crypto.change24h >= 0 ? 'positive' : 'negative'}`}
-                                    >
-                                        {crypto.change24h.toFixed(2)}%
-                                    </span>
                                 </div>
                             ))}
                         </div>
-                    ) : (
-                        <p>Loading top cryptocurrencies...</p>
                     )}
                 </div>
 
-                {/* Chart Widget */}
-                {selectedSymbol && (
-                    <div className="dashboard-widget chart-widget">
-                        <StockChart symbol={selectedSymbol} type={selectedType} />
-                    </div>
-                )}
+                {/* Top Cryptos Section */}
+                <div className="dashboard-section">
+                    <h2><FaArrowUp /> Top Cryptocurrencies</h2>
+                    {topCryptos.length === 0 ? (
+                        <p className="loading-state">Loading top cryptocurrencies...</p>
+                    ) : (
+                        <div className="top-cryptos">
+                            {topCryptos.map((crypto, index) => (
+                                <div key={index} className="crypto-item">
+                                    <div className="crypto-rank">#{index + 1}</div>
+                                    <div className="crypto-details">
+                                        <span className="crypto-name">{crypto.name}</span>
+                                        <span className="crypto-symbol">{crypto.symbol}</span>
+                                    </div>
+                                    <div className="crypto-price">${crypto.current_price}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+
+
         </div>
     );
 };

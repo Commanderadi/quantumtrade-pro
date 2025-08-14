@@ -1,86 +1,278 @@
+/* Modern, Clean Navigation Styles */
 .navigation {
-    background: white;
-    padding: 15px 30px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 25%, #2d1b69 50%, #1e3a8a 75%, #0ea5e9 100%);
+    color: white;
+    padding: 0;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
 }
 
+/* Brand Section */
+.nav-brand {
+    padding: 20px 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-brand h2 {
+    margin: 0;
+    font-size: 2.2rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #f093fb, #fbbf24, #10b981);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    text-shadow: 
+        0 0 20px rgba(96, 165, 250, 0.3),
+        0 0 40px rgba(96, 165, 250, 0.2);
+    animation: gradientShift 4s ease-in-out infinite;
+    letter-spacing: -0.02em;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* Main Navigation Container */
 .nav-links {
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    padding: 20px 0;
 }
 
+/* Navigation Sections */
+.nav-section {
+    margin-bottom: 25px;
+    padding: 0 20px;
+}
+
+.nav-section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94a3b8;
+    margin: 0 0 15px 0;
+    padding: 0 15px;
+    border-left: 3px solid #60a5fa;
+}
+
+/* Section Links Container */
+.nav-section-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Individual Navigation Links */
 .nav-link {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    padding: 12px 15px;
+    color: #e2e8f0;
     text-decoration: none;
-    color: #666;
-    padding: 10px 15px;
-    border-radius: 5px;
-    transition: all 0.3s;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
     font-weight: 500;
+    position: relative;
+    overflow: hidden;
 }
 
 .nav-link:hover {
-    background-color: #f8f9fa;
-    color: #007bff;
+    background: linear-gradient(135deg, 
+        rgba(96, 165, 250, 0.15), 
+        rgba(167, 139, 250, 0.1),
+        rgba(236, 72, 153, 0.05)
+    );
+    color: #60a5fa;
+    transform: translateX(10px) scale(1.02);
+    box-shadow: 
+        0 8px 25px rgba(96, 165, 250, 0.3),
+        0 0 0 1px rgba(96, 165, 250, 0.2);
+    text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
 }
 
 .nav-link.active {
-    background-color: #007bff;
+    background: linear-gradient(135deg, #60a5fa, #3b82f6, #1d4ed8);
     color: white;
+    box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+    transform: translateX(3px);
 }
 
+.nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 4px;
+    background: #fbbf24;
+    border-radius: 0 2px 2px 0;
+}
+
+/* Navigation Icons */
+.nav-link svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* User Section */
 .nav-user {
+    padding: 20px 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     display: flex;
     align-items: center;
-    gap: 15px;
+    justify-content: space-between;
 }
 
 .user-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: #666;
-    font-weight: 500;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+.user-info svg {
+    color: #60a5fa;
 }
 
 .logout-button {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 8px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    font-size: 14px;
 }
 
 .logout-button:hover {
-    background-color: #c82333;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
 }
 
+/* Scrollbar Styling */
+.nav-links::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nav-links::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.nav-links::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.3);
+    border-radius: 3px;
+}
+
+.nav-links::-webkit-scrollbar-thumb:hover {
+    background: rgba(96, 165, 250, 0.5);
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
     .navigation {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px;
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
     }
     
-    .nav-links {
-        width: 100%;
-        justify-content: center;
+    .navigation.open {
+        transform: translateX(0);
+    }
+    
+    .nav-brand h2 {
+        font-size: 1.5rem;
+    }
+    
+    .nav-section {
+        padding: 0 15px;
     }
     
     .nav-user {
-        width: 100%;
-        justify-content: center;
+        padding: 15px 20px;
     }
+}
+
+/* Animation for section titles */
+.nav-section-title {
+    animation: slideInLeft 0.6s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Hover effects for sections */
+.nav-section:hover .nav-section-title {
+    color: #60a5fa;
+    transition: color 0.3s ease;
+}
+
+/* Active section highlighting */
+.nav-section:has(.nav-link.active) .nav-section-title {
+    color: #60a5fa;
+    border-left-color: #fbbf24;
+}
+
+/* Link hover animations */
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 15px;
+    right: 15px;
+    height: 2px;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.nav-link:hover::after {
+    transform: scaleX(1);
+}
+
+/* Focus states for accessibility */
+.nav-link:focus {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+}
+
+.logout-button:focus {
+    outline: 2px solid #ef4444;
+    outline-offset: 2px;
 } 

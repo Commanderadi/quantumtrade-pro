@@ -1,81 +1,97 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaChartLine, FaWallet, FaBitcoin, FaSignOutAlt, FaUser, FaNewspaper, FaBell, FaLightbulb, FaSearch, FaComments, FaSmile, FaMagic } from 'react-icons/fa';
+import { 
+    FaChartLine, 
+    FaWallet, 
+    FaBitcoin, 
+    FaSignOutAlt, 
+    FaUser,
+    FaChartBar,
+    FaGlobe
+} from 'react-icons/fa';
 import './Navigation.css';
 
 const Navigation = ({ onLogout, user }) => {
     const location = useLocation();
 
+    const isActive = (path) => location.pathname === path;
+
     return (
         <nav className="navigation">
+            <div className="nav-brand">
+                <h2>🚀 TradePro</h2>
+            </div>
+            
             <div className="nav-links">
-                <Link 
-                    to="/dashboard" 
-                    className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
-                >
-                    <FaChartLine /> Analytics
-                </Link>
-                <Link 
-                    to="/portfolio" 
-                    className={`nav-link ${location.pathname === '/portfolio' ? 'active' : ''}`}
-                >
-                    <FaWallet /> Holdings
-                </Link>
-                <Link 
-                    to="/crypto" 
-                    className={`nav-link ${location.pathname === '/crypto' ? 'active' : ''}`}
-                >
-                    <FaBitcoin /> Digital Assets
-                </Link>
-                <Link 
-                    to="/indian-markets" 
-                    className={`nav-link ${location.pathname === '/indian-markets' ? 'active' : ''}`}
-                >
-                    🇮🇳 Indian Markets
-                </Link>
-                <Link 
-                    to="/news" 
-                    className={`nav-link ${location.pathname === '/news' ? 'active' : ''}`}
-                >
-                    <FaNewspaper /> Market News
-                </Link>
-                <Link 
-                    to="/alerts" 
-                    className={`nav-link ${location.pathname === '/alerts' ? 'active' : ''}`}
-                >
-                    <FaBell /> Price Alerts
-                </Link>
-                <Link 
-                    to="/ai-insights" 
-                    className={`nav-link ${location.pathname === '/ai-insights' ? 'active' : ''}`}
-                >
-                    <FaLightbulb /> AI Analytics
-                </Link>
-                <Link 
-                    to="/trading-signals" 
-                    className={`nav-link ${location.pathname === '/trading-signals' ? 'active' : ''}`}
-                >
-                    <FaSearch /> Trading Signals
-                </Link>
-                <Link 
-                    to="/nl-query" 
-                    className={`nav-link ${location.pathname === '/nl-query' ? 'active' : ''}`}
-                >
-                    <FaComments /> AI Assistant
-                </Link>
-                <Link 
-                    to="/sentiment" 
-                    className={`nav-link ${location.pathname === '/sentiment' ? 'active' : ''}`}
-                >
-                    <FaSmile /> Market Sentiment
-                </Link>
-                <Link 
-                    to="/predictions" 
-                    className={`nav-link ${location.pathname === '/predictions' ? 'active' : ''}`}
-                >
-                    <FaMagic /> Intelligence
-                </Link>
-    </div>
+                {/* Core Features */}
+                <div className="nav-section">
+                    <h4 className="nav-section-title">Core Features</h4>
+                    <div className="nav-section-links">
+                        <Link 
+                            to="/dashboard" 
+                            className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}
+                        >
+                            <FaChartLine /> Dashboard
+                        </Link>
+                        <Link 
+                            to="/portfolio" 
+                            className={`nav-link ${isActive('/portfolio') ? 'active' : ''}`}
+                        >
+                            <FaWallet /> Portfolio
+                        </Link>
+                        <Link 
+                            to="/crypto" 
+                            className={`nav-link ${isActive('/crypto') ? 'active' : ''}`}
+                        >
+                            <FaBitcoin /> Crypto
+                        </Link>
+                        <Link 
+                            to="/live-market" 
+                            className={`nav-link ${isActive('/live-market') ? 'active' : ''}`}
+                        >
+                            <FaGlobe /> Live Market
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Technical Analysis */}
+                <div className="nav-section">
+                    <h4 className="nav-section-title">Technical Analysis</h4>
+                    <div className="nav-section-links">
+                        <Link 
+                            to="/rsi" 
+                            className={`nav-link ${isActive('/rsi') ? 'active' : ''}`}
+                        >
+                            <FaChartLine /> RSI
+                        </Link>
+                        <Link 
+                            to="/macd" 
+                            className={`nav-link ${isActive('/macd') ? 'active' : ''}`}
+                        >
+                            <FaChartBar /> MACD
+                        </Link>
+                        <Link 
+                            to="/bollinger-bands" 
+                            className={`nav-link ${isActive('/bollinger-bands') ? 'active' : ''}`}
+                        >
+                            <FaChartLine /> Bollinger Bands
+                        </Link>
+                        <Link 
+                            to="/volume-profile" 
+                            className={`nav-link ${isActive('/volume-profile') ? 'active' : ''}`}
+                        >
+                            <FaChartBar /> Volume Profile
+                        </Link>
+                        <Link 
+                            to="/atr" 
+                            className={`nav-link ${isActive('/atr') ? 'active' : ''}`}
+                        >
+                            <FaChartLine /> ATR
+                        </Link>
+                    </div>
+                </div>
+            </div>
+
             <div className="nav-user">
                 <span className="user-info">
                     <FaUser /> {user?.username || 'Trader'}
