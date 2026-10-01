@@ -140,7 +140,7 @@ test('Twelve Data exchange aliases (London -> LSE)', async () => {
 });
 
 test('Twelve Data in-body errors map to proper HTTP errors', async () => {
-    const cases = [[429, 503], [404, 404], [400, 404], [401, 503], [403, 502], [500, 502]];
+    const cases = [[429, 503], [404, 404], [400, 404], [401, 503], [403, 402], [500, 502]];
     for (const [code, expected] of cases) {
         const { fetchImpl } = fakeFetch([['/quote', { status: 'error', code, message: 'nope' }]]);
         const market = createMarketData({ env: tdEnv, fetchImpl });
@@ -222,5 +222,75 @@ test('indices report per-item errors without failing the whole list', async () =
     assert.equal(spy.quote.price, 500);
     assert.equal(spy.error, null);
     assert.equal(nifty.quote, null);
-    assert.match(nifty.error, /not available on your plan/);
+    assert.match(nifty.error, /paid Twelve Data plan/);
+});
+
+// ------------------------------------------------- plan limits + fallback
+
+const planBody = { code: 404, message: 'This symbol is available starting with the Grow or Venture plan. Consider upgrading now at https://twelvedata.com/pricing', status: 'error' };
+
+test('Twelve Data errors returned with an HTTP 404 status are read, not treated as "not found"', async () => {
+    const { fetchImpl } = fakeFetch([['api.twelvedata.com/quote', planBody, 404]]);
+    const market = createMarketData({ env: tdEnv, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'TCS.NSE'), (err) => {
+        assert.equal(err.status, 402);
+        assert.equal(err.planLimited, true);
+        assert.match(err.message, /paid Twelve Data plan/);
+        return true;
+    });
+});
+
+test('a genuinely unknown symbol is still a 404 even with an HTTP 404 body', async () => {
+    const { fetchImpl } = fakeFetch([['api.twelvedata.com/quote', { code: 404, message: '**symbol** not found: NOPE.', status: 'error' }, 404]]);
+    const market = createMarketData({ env: tdEnv, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'NOPE'), (err) => err.status === 404 && !err.planLimited);
+});
+
+test('plan-limited symbols fall back to Alpha Vantage when it is configured', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['alphavantage.co', { 'Global Quote': { '05. price': '2950.00', '09. change': '10', '10. change percent': '0.34%', '07. latest trading day': '2024-05-01' } }],
+    ]);
+    const market = createMarketData({ env: { ...tdEnv, ALPHA_VANTAGE_API_KEY: 'av' }, fetchImpl });
+    const q = await market.getQuote('stock', 'RELIANCE.BSE');
+    assert.equal(q.price, 2950);
+    assert.equal(q.currency, 'INR');
+    assert.equal(q.source, 'Alpha Vantage');
+    assert.equal(calls.length, 2);
+    assert.ok(calls[1].includes('symbol=RELIANCE.BSE'));
+});
+
+test('plan-limited symbols fall back for price history too', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/time_series', planBody, 404],
+        ['alphavantage.co', { 'Time Series (Daily)': { '2024-05-01': { '1. open': '1', '2. high': '2', '3. low': '1', '4. close': '1.5', '5. volume': '10' } } }],
+    ]);
+    const market = createMarketData({ env: { ...tdEnv, ALPHA_VANTAGE_API_KEY: 'av' }, fetchImpl });
+    const h = await market.getDailyCandles('stock', 'RELIANCE.BSE');
+    assert.equal(h.source, 'Alpha Vantage');
+    assert.equal(h.candles.length, 1);
+});
+
+test('without a fallback the plan message is reported', async () => {
+    const { fetchImpl } = fakeFetch([['api.twelvedata.com/quote', planBody, 404]]);
+    const market = createMarketData({ env: tdEnv, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'TCS.NSE'), (err) => err.status === 402);
+});
+
+test('if the fallback cannot find the symbol either, the plan message wins', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['alphavantage.co', { 'Global Quote': {} }],
+    ]);
+    const market = createMarketData({ env: { ...tdEnv, ALPHA_VANTAGE_API_KEY: 'av' }, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'TCS.NSE'), (err) => err.status === 402);
+});
+
+test('fallback does not mask rate limits from Alpha Vantage', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['alphavantage.co', { Information: 'rate limit' }],
+    ]);
+    const market = createMarketData({ env: { ...tdEnv, ALPHA_VANTAGE_API_KEY: 'av' }, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'RELIANCE.BSE'), (err) => err.status === 503);
 });

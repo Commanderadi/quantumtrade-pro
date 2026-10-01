@@ -23,7 +23,7 @@ export default function IndicesStrip() {
                             <Change value={i.quote.changePercent} />
                         </>
                     ) : (
-                        <div className="muted small">{i.error || 'Unavailable'}</div>
+                        <div className="muted small">{/paid/i.test(i.error ?? '') ? 'Needs a paid data plan' : i.error || 'Unavailable'}</div>
                     )}
                 </div>
             ))}

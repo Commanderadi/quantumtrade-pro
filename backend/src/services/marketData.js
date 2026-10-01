@@ -63,13 +63,18 @@ const rateLimited = (provider) => {
 function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCache(), logger }) {
     const timeout = env.MARKET_DATA_TIMEOUT_MS;
 
-    async function getJson(provider, url, headers = {}) {
+    async function getJson(provider, url, headers = {}, { jsonErrors = false } = {}) {
         let res;
         try {
             res = await fetchImpl(url, { headers: { accept: 'application/json', ...headers }, signal: AbortSignal.timeout(timeout) });
         } catch (err) {
             logger?.warn({ provider, err: err.message }, 'Market data request failed');
             throw new HttpError(502, `${provider} is unreachable`);
+        }
+        // Some providers (Twelve Data) explain errors in a JSON body even on 4xx statuses.
+        if (jsonErrors && !res.ok) {
+            const body = await res.json().catch(() => null);
+            if (body && body.status === 'error') return body;
         }
         if (res.status === 429) throw rateLimited(provider);
         if (res.status === 404) throw notFound('Symbol not found');
@@ -109,14 +114,20 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
 
     async function twelveData(path, params) {
         const qs = new URLSearchParams({ ...params, apikey: env.TWELVE_DATA_API_KEY });
-        const data = await getJson('Twelve Data', `https://api.twelvedata.com${path}?${qs}`);
-        // Twelve Data reports most errors as HTTP 200 with { status: 'error', code }.
+        const data = await getJson('Twelve Data', `https://api.twelvedata.com${path}?${qs}`, {}, { jsonErrors: true });
+        // Twelve Data reports errors as { status: 'error', code, message }, sometimes with HTTP 200.
         if (data && data.status === 'error') {
+            const message = String(data.message || '');
             if (data.code === 429) throw rateLimited('Twelve Data');
             if (data.code === 401) throw new HttpError(503, 'Twelve Data API key was rejected');
-            if (data.code === 403) throw new HttpError(502, 'Twelve Data: this symbol is not available on your plan');
+            // e.g. "This symbol is available starting with the Grow or Venture plan."
+            if (data.code === 403 || /\b(plan|upgrad)/i.test(message)) {
+                const err = new HttpError(402, 'This symbol needs a paid Twelve Data plan (the free plan covers US stocks and crypto)');
+                err.planLimited = true;
+                throw err;
+            }
             if (data.code === 404 || data.code === 400) throw notFound('Symbol not found');
-            throw new HttpError(502, `Twelve Data error: ${data.message || data.code}`);
+            throw new HttpError(502, `Twelve Data error: ${message || data.code}`);
         }
         return data;
     }
@@ -174,12 +185,60 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
 
     // ------------------------------------------------------------ stocks
 
-    // Preference order: Twelve Data (worldwide incl. NSE/BSE) > Finnhub (quotes) > Alpha Vantage.
+    // Preference order: Twelve Data (worldwide) > Finnhub (quotes) > Alpha Vantage.
+    // If Twelve Data says a symbol needs a paid plan (e.g. Indian stocks on the
+    // free plan), Alpha Vantage is tried instead when it is configured.
     const quoteTtl = (env.STOCK_QUOTE_CACHE_SECONDS ?? 120) * 1000;
+
+    async function withPlanFallback(primary, fallback) {
+        try {
+            return await primary();
+        } catch (err) {
+            if (err.planLimited && env.ALPHA_VANTAGE_API_KEY) {
+                try {
+                    return await fallback();
+                } catch (fallbackErr) {
+                    // Alpha Vantage can't help either: report the more useful plan message.
+                    if (fallbackErr.status === 404) throw err;
+                    throw fallbackErr;
+                }
+            }
+            throw err;
+        }
+    }
+
+    async function alphaQuote(symbol) {
+        const data = await alphaVantage({ function: 'GLOBAL_QUOTE', symbol });
+        const q = data['Global Quote'];
+        if (!q || !q['05. price']) throw notFound(`No quote found for ${symbol}`);
+        return {
+            symbol, assetType: 'stock', currency: stockCurrency(symbol),
+            price: num(q['05. price']), change: num(q['09. change']),
+            changePercent: num(String(q['10. change percent'] || '').replace('%', '')),
+            open: num(q['02. open']), high: num(q['03. high']), low: num(q['04. low']),
+            previousClose: num(q['08. previous close']), volume: num(q['06. volume']),
+            asOf: q['07. latest trading day'] ? new Date(`${q['07. latest trading day']}T00:00:00Z`).toISOString() : null,
+            source: 'Alpha Vantage',
+        };
+    }
+
+    async function alphaCandles(symbol) {
+        const data = await alphaVantage({ function: 'TIME_SERIES_DAILY', symbol, outputsize: 'compact' });
+        const series = data['Time Series (Daily)'];
+        if (!series) throw notFound(`No price history for ${symbol}`);
+        const candles = Object.entries(series)
+            .map(([date, v]) => ({
+                date,
+                open: num(v['1. open']), high: num(v['2. high']), low: num(v['3. low']),
+                close: num(v['4. close']), volume: num(v['5. volume']),
+            }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+        return { symbol, assetType: 'stock', currency: stockCurrency(symbol), approximateOhlc: false, candles, source: 'Alpha Vantage' };
+    }
 
     async function stockQuote(symbol) {
         return cache.wrap(`stock:quote:${symbol}`, quoteTtl, async () => {
-            if (env.TWELVE_DATA_API_KEY) return twelveQuote(symbol);
+            if (env.TWELVE_DATA_API_KEY) return withPlanFallback(() => twelveQuote(symbol), () => alphaQuote(symbol));
             if (env.FINNHUB_API_KEY) {
                 const q = await finnhub('/quote', { symbol });
                 // Finnhub answers unknown symbols with all zeros.
@@ -192,35 +251,14 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
                     source: 'Finnhub',
                 };
             }
-            const data = await alphaVantage({ function: 'GLOBAL_QUOTE', symbol });
-            const q = data['Global Quote'];
-            if (!q || !q['05. price']) throw notFound(`No quote found for ${symbol}`);
-            return {
-                symbol, assetType: 'stock', currency: stockCurrency(symbol),
-                price: num(q['05. price']), change: num(q['09. change']),
-                changePercent: num(String(q['10. change percent'] || '').replace('%', '')),
-                open: num(q['02. open']), high: num(q['03. high']), low: num(q['04. low']),
-                previousClose: num(q['08. previous close']), volume: num(q['06. volume']),
-                asOf: q['07. latest trading day'] ? new Date(`${q['07. latest trading day']}T00:00:00Z`).toISOString() : null,
-                source: 'Alpha Vantage',
-            };
+            return alphaQuote(symbol);
         });
     }
 
     async function stockCandles(symbol) {
         return cache.wrap(`stock:candles:${symbol}`, TTL.candles, async () => {
-            if (env.TWELVE_DATA_API_KEY) return twelveCandles(symbol);
-            const data = await alphaVantage({ function: 'TIME_SERIES_DAILY', symbol, outputsize: 'compact' });
-            const series = data['Time Series (Daily)'];
-            if (!series) throw notFound(`No price history for ${symbol}`);
-            const candles = Object.entries(series)
-                .map(([date, v]) => ({
-                    date,
-                    open: num(v['1. open']), high: num(v['2. high']), low: num(v['3. low']),
-                    close: num(v['4. close']), volume: num(v['5. volume']),
-                }))
-                .sort((a, b) => a.date.localeCompare(b.date));
-            return { symbol, assetType: 'stock', currency: stockCurrency(symbol), approximateOhlc: false, candles, source: 'Alpha Vantage' };
+            if (env.TWELVE_DATA_API_KEY) return withPlanFallback(() => twelveCandles(symbol), () => alphaCandles(symbol));
+            return alphaCandles(symbol);
         });
     }
 

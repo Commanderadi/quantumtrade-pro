@@ -48,6 +48,15 @@ Responses are cached in memory (stock quotes 120 s by default, crypto quotes 60 
 concurrent identical requests are merged. When a provider is unavailable or rate
 limited the API returns a clear `502`/`503` error — it never substitutes made-up prices.
 
+**What the free plans cover (as of writing, check each provider's pricing page).**
+Twelve Data's free *Basic* plan covers US stocks, ETFs and crypto, but **Indian NSE/BSE stocks need its paid
+Grow plan or higher** (the API answers "available starting with the Grow or Venture plan"; the app shows
+"needs a paid Twelve Data plan"). If you also set `ALPHA_VANTAGE_API_KEY`, the app automatically falls back
+to Alpha Vantage for such symbols, which works for many BSE listings (`RELIANCE.BSE`) on its free tier
+(25 requests/day) but not for NSE. For full Indian coverage, upgrade Twelve Data or ask for a broker-API
+integration. The dashboard's Nifty 50 tile (`NIFTYBEES.NSE`) shows "Needs a paid data plan" on the free
+plan; remove it with the `MARKET_INDICES` setting if you prefer.
+
 **Symbols for non-US stocks** carry an exchange suffix: `TCS.NSE`, `RELIANCE.BSE`,
 `VOD.LON`. The search box fills these in for you with Twelve Data, and the
 listing currency (INR for `.NSE`/`.BSE`, GBP for `.LON`, …) is recorded with each trade.
