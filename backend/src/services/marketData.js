@@ -7,7 +7,7 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
 const TTL = {
-    quote: MINUTE,
+    quote: MINUTE, // crypto; stock quotes use env.STOCK_QUOTE_CACHE_SECONDS
     candles: 6 * HOUR,
     search: 24 * HOUR,
     coinId: 24 * HOUR,
@@ -30,6 +30,19 @@ const SUFFIX_CURRENCY = {
     BSE: 'INR', NSE: 'INR', LON: 'GBP', TRT: 'CAD', TRV: 'CAD', DEX: 'EUR', FRK: 'EUR',
     PAR: 'EUR', AMS: 'EUR', SHH: 'CNY', SHZ: 'CNY', HKG: 'HKD', TYO: 'JPY', SAO: 'BRL',
 };
+
+// Our symbols carry an exchange suffix (RELIANCE.NSE). Twelve Data wants the
+// bare ticker plus an `exchange` parameter; most suffixes are used as-is.
+const TWELVE_EXCHANGE = { LON: 'LSE', TRT: 'TSX', TRV: 'TSXV', DEX: 'XETR', FRK: 'FSX', HKG: 'HKEX', TYO: 'JPX' };
+
+function splitSymbol(symbol) {
+    const dot = symbol.lastIndexOf('.');
+    if (dot < 1) return { ticker: symbol, suffix: null };
+    const suffix = symbol.slice(dot + 1);
+    // Share classes such as BRK.B keep the dot; exchange suffixes are 2+ letters.
+    if (suffix.length < 2) return { ticker: symbol, suffix: null };
+    return { ticker: symbol.slice(0, dot), suffix };
+}
 
 function stockCurrency(symbol) {
     const dot = symbol.lastIndexOf('.');
@@ -71,7 +84,7 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
 
     function requireAlphaVantage() {
         if (!env.ALPHA_VANTAGE_API_KEY) {
-            throw new HttpError(503, 'Stock data is not configured (set ALPHA_VANTAGE_API_KEY)');
+            throw new HttpError(503, 'Stock data is not configured (set TWELVE_DATA_API_KEY, FINNHUB_API_KEY or ALPHA_VANTAGE_API_KEY)');
         }
     }
 
@@ -92,8 +105,81 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
         return getJson('Finnhub', `https://finnhub.io/api/v1${path}?${qs}`, { 'X-Finnhub-Token': env.FINNHUB_API_KEY });
     }
 
+    // ------------------------------------------------------- Twelve Data
+
+    async function twelveData(path, params) {
+        const qs = new URLSearchParams({ ...params, apikey: env.TWELVE_DATA_API_KEY });
+        const data = await getJson('Twelve Data', `https://api.twelvedata.com${path}?${qs}`);
+        // Twelve Data reports most errors as HTTP 200 with { status: 'error', code }.
+        if (data && data.status === 'error') {
+            if (data.code === 429) throw rateLimited('Twelve Data');
+            if (data.code === 401) throw new HttpError(503, 'Twelve Data API key was rejected');
+            if (data.code === 403) throw new HttpError(502, 'Twelve Data: this symbol is not available on your plan');
+            if (data.code === 404 || data.code === 400) throw notFound('Symbol not found');
+            throw new HttpError(502, `Twelve Data error: ${data.message || data.code}`);
+        }
+        return data;
+    }
+
+    function twelveParams(symbol) {
+        const { ticker, suffix } = splitSymbol(symbol);
+        return suffix ? { symbol: ticker, exchange: TWELVE_EXCHANGE[suffix] || suffix } : { symbol: ticker };
+    }
+
+    async function twelveQuote(symbol) {
+        const q = await twelveData('/quote', twelveParams(symbol));
+        const price = num(q.close);
+        if (price === null) throw notFound(`No quote found for ${symbol}`);
+        return {
+            symbol, assetType: 'stock', currency: q.currency || stockCurrency(symbol),
+            price, change: num(q.change), changePercent: num(q.percent_change),
+            open: num(q.open), high: num(q.high), low: num(q.low), previousClose: num(q.previous_close),
+            volume: num(q.volume), exchange: q.exchange ?? null, name: q.name ?? null,
+            isMarketOpen: typeof q.is_market_open === 'boolean' ? q.is_market_open : null,
+            asOf: q.timestamp ? new Date(q.timestamp * 1000).toISOString() : q.datetime ? new Date(`${q.datetime.slice(0, 10)}T00:00:00Z`).toISOString() : null,
+            source: 'Twelve Data',
+        };
+    }
+
+    async function twelveCandles(symbol) {
+        const data = await twelveData('/time_series', { ...twelveParams(symbol), interval: '1day', outputsize: '250' });
+        const candles = (data.values || [])
+            .map((v) => ({
+                date: v.datetime.slice(0, 10),
+                open: num(v.open), high: num(v.high), low: num(v.low), close: num(v.close), volume: num(v.volume),
+            }))
+            .filter((c) => c.close !== null)
+            .sort((a, b) => a.date.localeCompare(b.date));
+        if (!candles.length) throw notFound(`No price history for ${symbol}`);
+        return {
+            symbol, assetType: 'stock', currency: data.meta?.currency || stockCurrency(symbol),
+            approximateOhlc: false, candles, source: 'Twelve Data',
+        };
+    }
+
+    // Exchanges whose listings are written without a suffix (US).
+    const toAppSymbol = (r) => (r.country === 'United States' || !r.exchange ? r.symbol : `${r.symbol}.${r.exchange}`);
+
+    async function twelveSearch(query) {
+        const data = await twelveData('/symbol_search', { symbol: query, outputsize: '15' });
+        const seen = new Set();
+        return (data.data || [])
+            .map((r) => ({
+                symbol: toAppSymbol(r), name: r.instrument_name, assetType: 'stock', type: r.instrument_type,
+                region: r.country ? `${r.country}${r.exchange ? ` · ${r.exchange}` : ''}` : null,
+                currency: r.currency || stockCurrency(toAppSymbol(r)),
+            }))
+            .filter((r) => (seen.has(r.symbol) ? false : seen.add(r.symbol)));
+    }
+
+    // ------------------------------------------------------------ stocks
+
+    // Preference order: Twelve Data (worldwide incl. NSE/BSE) > Finnhub (quotes) > Alpha Vantage.
+    const quoteTtl = (env.STOCK_QUOTE_CACHE_SECONDS ?? 120) * 1000;
+
     async function stockQuote(symbol) {
-        return cache.wrap(`stock:quote:${symbol}`, TTL.quote, async () => {
+        return cache.wrap(`stock:quote:${symbol}`, quoteTtl, async () => {
+            if (env.TWELVE_DATA_API_KEY) return twelveQuote(symbol);
             if (env.FINNHUB_API_KEY) {
                 const q = await finnhub('/quote', { symbol });
                 // Finnhub answers unknown symbols with all zeros.
@@ -123,6 +209,7 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
 
     async function stockCandles(symbol) {
         return cache.wrap(`stock:candles:${symbol}`, TTL.candles, async () => {
+            if (env.TWELVE_DATA_API_KEY) return twelveCandles(symbol);
             const data = await alphaVantage({ function: 'TIME_SERIES_DAILY', symbol, outputsize: 'compact' });
             const series = data['Time Series (Daily)'];
             if (!series) throw notFound(`No price history for ${symbol}`);
@@ -139,6 +226,7 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
 
     async function stockSearch(query) {
         return cache.wrap(`stock:search:${query.toLowerCase()}`, TTL.search, async () => {
+            if (env.TWELVE_DATA_API_KEY) return twelveSearch(query);
             if (env.FINNHUB_API_KEY && !env.ALPHA_VANTAGE_API_KEY) {
                 const data = await finnhub('/search', { q: query });
                 return (data.result || []).slice(0, 15).map((r) => ({
@@ -284,9 +372,43 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
         });
     }
 
+    // ------------------------------------------------------------- FX rates
+
+    /**
+     * Fiat exchange rates from CoinGecko's /exchange_rates (quoted per 1 BTC, so
+     * any cross rate is a simple ratio). Good for portfolio display, not for trading.
+     */
+    async function fxRates() {
+        return cache.wrap('fx:rates', 10 * MINUTE, async () => {
+            const data = await coingecko('/exchange_rates');
+            const rates = {};
+            for (const [code, r] of Object.entries(data.rates || {})) {
+                if (r.type === 'fiat' && num(r.value)) rates[code.toUpperCase()] = r.value;
+            }
+            if (!rates.USD) throw new HttpError(502, 'Exchange rates are unavailable');
+            return { rates, asOf: new Date().toISOString(), source: 'CoinGecko' };
+        });
+    }
+
+    /** Multiplier that converts an amount in `from` into `to`. */
+    async function fxRate(from, to) {
+        if (from === to) return 1;
+        const { rates } = await fxRates();
+        if (!rates[from] || !rates[to]) throw notFound(`No exchange rate for ${!rates[from] ? from : to}`);
+        return rates[to] / rates[from];
+    }
+
+    // ---------------------------------------------------------------- indices
+
+    async function indices() {
+        const list = env.MARKET_INDICES || [];
+        const { quotes, errors } = await facade.getQuotes('stock', list.map((i) => i.symbol));
+        return list.map((i) => ({ label: i.label, symbol: i.symbol, quote: quotes.get(i.symbol) ?? null, error: errors.get(i.symbol) ?? null }));
+    }
+
     // ---------------------------------------------------------------- facade
 
-    return {
+    const facade = {
         getQuote: (assetType, symbol) => (assetType === 'crypto' ? cryptoQuote(symbol) : stockQuote(symbol)),
 
         /** Returns a Map(symbol -> quote); symbols that fail are reported in `errors`. */
@@ -313,7 +435,11 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
         search: (assetType, query) => (assetType === 'crypto' ? cryptoSearch(query) : stockSearch(query)),
         topCryptos,
         cryptoInfo,
+        fxRates,
+        fxRate,
+        indices: () => indices(),
     };
+    return facade;
 }
 
 module.exports = { createMarketData, stockCurrency, KNOWN_COIN_IDS };

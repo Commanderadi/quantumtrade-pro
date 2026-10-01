@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import { Spinner } from './components/ui';
@@ -57,9 +58,11 @@ export default function App() {
         <ErrorBoundary>
             <ThemeProvider>
                 <AuthProvider>
-                    <BrowserRouter>
-                        <AppRoutes />
-                    </BrowserRouter>
+                    <CurrencyProvider>
+                        <BrowserRouter>
+                            <AppRoutes />
+                        </BrowserRouter>
+                    </CurrencyProvider>
                 </AuthProvider>
             </ThemeProvider>
         </ErrorBoundary>

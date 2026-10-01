@@ -30,9 +30,18 @@ const schema = z.object({
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 
     ALPHA_VANTAGE_API_KEY: z.string().default(''),
+    // Recommended for Indian (NSE/BSE) and international stocks.
+    TWELVE_DATA_API_KEY: z.string().default(''),
     FINNHUB_API_KEY: z.string().default(''),
     COINGECKO_API_KEY: z.string().default(''),
     MARKET_DATA_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
+    // How long stock quotes are reused. Free plans allow only a few requests per
+    // minute, so keep this at 120+ seconds unless you have a paid plan.
+    STOCK_QUOTE_CACHE_SECONDS: z.coerce.number().int().min(5).default(120),
+    // Comma-separated "Label=SYMBOL" pairs shown in the dashboard indices strip.
+    MARKET_INDICES: z
+        .string()
+        .default('S&P 500 (SPY ETF)=SPY,Nasdaq 100 (QQQ ETF)=QQQ,Dow Jones (DIA ETF)=DIA,Nifty 50 (NIFTYBEES ETF)=NIFTYBEES.NSE'),
 
     ALERT_CHECK_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(300),
 });
@@ -46,6 +55,14 @@ function loadEnv(source = process.env) {
     const env = parsed.data;
     if (env.COOKIE_SECURE === undefined) env.COOKIE_SECURE = env.NODE_ENV === 'production';
     env.CORS_ORIGINS = env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean);
+    env.MARKET_INDICES = env.MARKET_INDICES.split(',')
+        .map((pair) => pair.trim())
+        .filter(Boolean)
+        .map((pair) => {
+            const i = pair.lastIndexOf('=');
+            if (i < 1) throw new Error(`Invalid environment configuration:\n  - MARKET_INDICES: "${pair}" must look like Label=SYMBOL`);
+            return { label: pair.slice(0, i).trim(), symbol: pair.slice(i + 1).trim().toUpperCase() };
+        });
     return Object.freeze(env);
 }
 

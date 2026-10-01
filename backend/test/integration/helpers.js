@@ -52,6 +52,17 @@ function createFakeMarket() {
         search: async (type, q) => Object.keys(prices[type]).filter((s) => s.includes(q.toUpperCase())).map((symbol) => ({ symbol, assetType: type })),
         topCryptos: async (limit) => Object.entries(prices.crypto).slice(0, limit).map(([symbol, p]) => ({ symbol, ...p })),
         cryptoInfo: async (symbol) => ({ symbol, name: symbol }),
+        async fxRate(from, to) {
+            const perUsd = { USD: 1, INR: 80, EUR: 0.9 };
+            if (!perUsd[from] || !perUsd[to]) throw notFound(`No exchange rate for ${!perUsd[from] ? from : to}`);
+            return perUsd[to] / perUsd[from];
+        },
+        async indices() {
+            return [
+                { label: 'S&P 500', symbol: 'SPY', quote: quote('stock', 'AAPL'), error: null },
+                { label: 'Nifty 50', symbol: 'NIFTYBEES.NSE', quote: null, error: 'not available on your plan' },
+            ];
+        },
     };
 }
 

@@ -309,3 +309,39 @@ test('auth endpoints are rate limited', async (t) => {
     assert.equal(statuses.filter((s) => s === 401).length, 20);
     assert.equal(statuses.at(-1), 429);
 });
+
+test('market: indices and exchange rates', async (t) => {
+    if (skipIfNoDb(t)) return;
+    const a = ctx.agent();
+    await registerUser(a, 'globalist');
+    const idx = await a.get('/api/market/indices').expect(200);
+    assert.equal(idx.body.indices.length, 2);
+    assert.equal(idx.body.indices[1].error, 'not available on your plan');
+    const fx = await a.get('/api/market/fx?from=usd&to=inr').expect(200);
+    assert.equal(fx.body.rate, 80);
+    await a.get('/api/market/fx?from=USD&to=XXX').expect(404);
+    await a.get('/api/market/fx?from=USD').expect(400);
+});
+
+test('portfolio: combined totals in a chosen display currency', async (t) => {
+    if (skipIfNoDb(t)) return;
+    const a = ctx.agent();
+    await registerUser(a, 'multicurrency');
+    ctx.market.prices.stock['TCS.NSE'] = { price: 3300, change: 30, changePercent: 1 };
+    await a.post('/api/portfolio/transactions').send({ assetType: 'stock', symbol: 'AAPL', side: 'buy', quantity: '1', price: '100' }).expect(201);
+    const tcs = await a.post('/api/portfolio/transactions').send({ assetType: 'stock', symbol: 'TCS.NSE', side: 'buy', quantity: '2', price: '3000' }).expect(201);
+    assert.equal(tcs.body.transaction.currency, 'INR');
+
+    const plain = await a.get('/api/portfolio').expect(200);
+    assert.equal(plain.body.combined, null);
+    assert.equal(plain.body.totals.length, 2);
+
+    const inr = await a.get('/api/portfolio?currency=inr').expect(200);
+    assert.equal(inr.body.combined.currency, 'INR');
+    assert.equal(inr.body.combined.marketValue, 200 * 80 + 6600);
+    assert.equal(inr.body.combined.costBasis, 100 * 80 + 6000);
+
+    const usd = await a.get('/api/portfolio?currency=USD').expect(200);
+    assert.equal(usd.body.combined.marketValue, 200 + 6600 / 80);
+    await a.get('/api/portfolio?currency=rupees').expect(400);
+});

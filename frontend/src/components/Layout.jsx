@@ -71,7 +71,7 @@ export default function Layout() {
                     <Outlet />
                 </main>
                 <footer className="footer">
-                    Market data from Alpha Vantage / Finnhub and CoinGecko; quotes may be delayed. Information only — not investment advice.
+                    Market data from Twelve Data, Finnhub, Alpha Vantage and CoinGecko; quotes may be delayed. Information only — not investment advice.
                 </footer>
             </div>
         </div>

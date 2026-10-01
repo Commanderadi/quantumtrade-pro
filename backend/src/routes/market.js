@@ -38,6 +38,24 @@ function marketRouter({ market }) {
         res.json({ info: await market.cryptoInfo(symbol) });
     });
 
+    router.get('/indices', async (_req, res) => {
+        res.json({ indices: await market.indices() });
+    });
+
+    router.get(
+        '/fx',
+        validate({
+            query: z.object({
+                from: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
+                to: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
+            }),
+        }),
+        async (req, res) => {
+            const { from, to } = req.valid.query;
+            res.json({ from, to, rate: await market.fxRate(from, to), source: 'CoinGecko' });
+        }
+    );
+
     // Daily candles with technical indicators and a rule-based signal summary.
     router.get('/analysis/:assetType/:symbol', validate({ params: withSymbol() }), async (req, res) => {
         const { assetType: type, symbol } = req.valid.params;

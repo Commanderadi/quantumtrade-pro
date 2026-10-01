@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import { AppRoutes } from './App';
 
 /** Routes fetch calls to handlers keyed by "METHOD /path". */
@@ -22,9 +23,11 @@ const renderApp = (path = '/') =>
     render(
         <ThemeProvider>
             <AuthProvider>
-                <MemoryRouter initialEntries={[path]}>
-                    <AppRoutes />
-                </MemoryRouter>
+                <CurrencyProvider>
+                    <MemoryRouter initialEntries={[path]}>
+                        <AppRoutes />
+                    </MemoryRouter>
+                </CurrencyProvider>
             </AuthProvider>
         </ThemeProvider>
     );
@@ -34,6 +37,10 @@ const signedInHandlers = {
     'GET /portfolio': () => [200, { positions: [], totals: [] }],
     'GET /watchlist': () => [200, { items: [{ id: 1, symbol: 'AAPL', assetType: 'stock', quote: { price: 190.12, changePercent: 1.5, currency: 'USD', asOf: '2024-05-01T00:00:00Z' } }] }],
     'GET /alerts': () => [200, { alerts: [] }],
+    'GET /market/indices': () => [200, { indices: [
+        { label: 'S&P 500 (SPY ETF)', symbol: 'SPY', quote: { price: 500, changePercent: 0.4, currency: 'USD' }, error: null },
+        { label: 'Nifty 50 (NIFTYBEES ETF)', symbol: 'NIFTYBEES.NSE', quote: null, error: 'Twelve Data: not available on your plan' },
+    ] }],
     'GET /market/crypto/top': () => [200, { coins: [{ coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 60000, changePercent: -2 }] }],
 };
 
@@ -81,5 +88,37 @@ describe('App', () => {
         });
         renderApp('/');
         expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    });
+
+    it('shows market indices, including ones that are unavailable', async () => {
+        mockApi({ 'GET /auth/me': () => [200, { user }], ...signedInHandlers });
+        renderApp('/');
+        expect(await screen.findByText('S&P 500 (SPY ETF)')).toBeInTheDocument();
+        expect(screen.getByText('Nifty 50 (NIFTYBEES ETF)')).toBeInTheDocument();
+        expect(screen.getByText('Twelve Data: not available on your plan')).toBeInTheDocument();
+    });
+
+    it('converts portfolio totals into the chosen currency', async () => {
+        const fetchSpy = mockApi({
+            'GET /auth/me': () => [200, { user }],
+            ...signedInHandlers,
+            'GET /portfolio': () => [200, {
+                positions: [],
+                totals: [
+                    { currency: 'USD', marketValue: 1000 }, { currency: 'INR', marketValue: 50000 },
+                ],
+                combined: {
+                    currency: 'INR', marketValue: 134000, costBasis: 120000, unrealizedPnl: 14000, unrealizedPnlPercent: 11.67,
+                    realizedPnl: 0, dayChange: 500, dayChangePercent: 0.37, rates: { USD: 84, INR: 1 }, missingRates: [],
+                },
+            }],
+        });
+        localStorage.setItem('quantumtrade-display-currency', 'INR');
+        renderApp('/');
+        expect(await screen.findByRole('heading', { name: 'Portfolio (INR)' })).toBeInTheDocument();
+        expect(screen.getByText(/1 USD = /)).toBeInTheDocument();
+        const portfolioCall = fetchSpy.mock.calls.find(([url]) => String(url).startsWith('/api/portfolio'));
+        expect(portfolioCall[0]).toBe('/api/portfolio?currency=INR');
+        localStorage.removeItem('quantumtrade-display-currency');
     });
 });
