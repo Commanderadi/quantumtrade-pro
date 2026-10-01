@@ -80,8 +80,8 @@ function QuoteDetails({ assetType, symbol }) {
     const addToWatchlist = async () => {
         setMsg(null);
         try {
-            await Watchlist.add(assetType, symbol);
-            setMsg({ tone: 'success', text: `${symbol} added to your watchlist.` });
+            await Watchlist.add(assetType, shownSymbol);
+            setMsg({ tone: 'success', text: `${shownSymbol} added to your watchlist.` });
         } catch (err) {
             setMsg({ tone: 'error', text: err.message });
         }
@@ -91,23 +91,25 @@ function QuoteDetails({ assetType, symbol }) {
     if (quote.error) return <ErrorMessage error={quote.error} onRetry={quote.reload} />;
     const q = quote.data.quote;
     const i = info.data?.info;
+    const shownSymbol = q.symbol ?? symbol;
 
     return (
         <Card
             title={
                 <>
                     {i?.image && <img src={i.image} alt="" width="24" height="24" className="title-icon" />}
-                    {i?.name ? `${i.name} (${symbol})` : symbol}
+                    {i?.name ? `${i.name} (${shownSymbol})` : shownSymbol}
                 </>
             }
             actions={
                 <>
                     <button type="button" className="btn btn-small" onClick={addToWatchlist}><FiStar aria-hidden="true" /> Watch</button>
-                    <Link className="btn btn-small" to={`/alerts?type=${assetType}&symbol=${encodeURIComponent(symbol)}`}><FiBell aria-hidden="true" /> Alert</Link>
-                    <Link className="btn btn-small btn-primary" to={`/analysis/${assetType}/${encodeURIComponent(symbol)}`}><FiBarChart2 aria-hidden="true" /> Analyze</Link>
+                    <Link className="btn btn-small" to={`/alerts?type=${assetType}&symbol=${encodeURIComponent(shownSymbol)}`}><FiBell aria-hidden="true" /> Alert</Link>
+                    <Link className="btn btn-small btn-primary" to={`/analysis/${assetType}/${encodeURIComponent(shownSymbol)}`}><FiBarChart2 aria-hidden="true" /> Analyze</Link>
                 </>
             }
         >
+            {q.note && <Notice tone="warning">{q.note}</Notice>}
             {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
             <div className="quote-price">
                 <span className="price">{formatMoney(q.price, q.currency)}</span>

@@ -57,6 +57,11 @@ to Alpha Vantage for such symbols, which works for many BSE listings (`RELIANCE.
 integration. The dashboard's Nifty 50 tile (`NIFTYBEES.NSE`) shows "Needs a paid data plan" on the free
 plan; remove it with the `MARKET_INDICES` setting if you prefer.
 
+**Automatic BSE substitution.** If an `.NSE` symbol (or a bare name such as `RELIANCE`) can't be
+loaded on your plan, the app tries the same company's `.BSE` listing and says so on screen
+("Showing TCS.BSE (BSE listing) because TCS.NSE could not be loaded…"). Prices on the two
+exchanges are very close but not identical.
+
 **Symbols for non-US stocks** carry an exchange suffix: `TCS.NSE`, `RELIANCE.BSE`,
 `VOD.LON`. The search box fills these in for you with Twelve Data, and the
 listing currency (INR for `.NSE`/`.BSE`, GBP for `.LON`, …) is recorded with each trade.

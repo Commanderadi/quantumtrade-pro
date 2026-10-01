@@ -236,30 +236,69 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
         return { symbol, assetType: 'stock', currency: stockCurrency(symbol), approximateOhlc: false, candles, source: 'Alpha Vantage' };
     }
 
-    async function stockQuote(symbol) {
-        return cache.wrap(`stock:quote:${symbol}`, quoteTtl, async () => {
-            if (env.TWELVE_DATA_API_KEY) return withPlanFallback(() => twelveQuote(symbol), () => alphaQuote(symbol));
-            if (env.FINNHUB_API_KEY) {
-                const q = await finnhub('/quote', { symbol });
-                // Finnhub answers unknown symbols with all zeros.
-                if (!q || !q.c) throw notFound(`No quote found for ${symbol}`);
-                return {
-                    symbol, assetType: 'stock', currency: stockCurrency(symbol),
-                    price: num(q.c), change: num(q.d), changePercent: num(q.dp),
-                    open: num(q.o), high: num(q.h), low: num(q.l), previousClose: num(q.pc), volume: null,
-                    asOf: q.t ? new Date(q.t * 1000).toISOString() : new Date().toISOString(),
-                    source: 'Finnhub',
-                };
+    /**
+     * Alternative listings to try when a stock symbol can't be loaded:
+     * an NSE symbol -> the same ticker on BSE (free Alpha Vantage coverage);
+     * a bare name like RELIANCE -> its BSE listing found through search.
+     */
+    async function alternativeSymbols(symbol) {
+        const { ticker, suffix } = splitSymbol(symbol);
+        if (suffix === 'NSE') return [`${ticker}.BSE`];
+        if (suffix) return [];
+        const results = await stockSearch(ticker);
+        return results
+            .map((r) => r.symbol)
+            .filter((sym) => /\.BSE$/.test(sym) && splitSymbol(sym).ticker.toUpperCase() === ticker.toUpperCase())
+            .slice(0, 2);
+    }
+
+    /** Runs fetchOne(symbol); if the symbol is unknown or plan-limited, tries alternative listings. */
+    async function withAlternatives(symbol, fetchOne) {
+        try {
+            return await fetchOne(symbol);
+        } catch (err) {
+            if (!(err.planLimited || err.status === 404)) throw err;
+            const candidates = await alternativeSymbols(symbol).catch(() => []);
+            for (const alt of candidates) {
+                try {
+                    const result = await fetchOne(alt);
+                    return { ...result, resolvedFrom: symbol, note: `Showing ${alt} (BSE listing) because ${symbol} could not be loaded on your data plan.` };
+                } catch (altErr) {
+                    if (altErr.status === 503) throw altErr; // rate limited: tell the user
+                }
             }
-            return alphaQuote(symbol);
-        });
+            throw err;
+        }
+    }
+
+    async function providerQuote(symbol) {
+        if (env.TWELVE_DATA_API_KEY) return withPlanFallback(() => twelveQuote(symbol), () => alphaQuote(symbol));
+        if (env.FINNHUB_API_KEY) {
+            const q = await finnhub('/quote', { symbol });
+            // Finnhub answers unknown symbols with all zeros.
+            if (!q || !q.c) throw notFound(`No quote found for ${symbol}`);
+            return {
+                symbol, assetType: 'stock', currency: stockCurrency(symbol),
+                price: num(q.c), change: num(q.d), changePercent: num(q.dp),
+                open: num(q.o), high: num(q.h), low: num(q.l), previousClose: num(q.pc), volume: null,
+                asOf: q.t ? new Date(q.t * 1000).toISOString() : new Date().toISOString(),
+                source: 'Finnhub',
+            };
+        }
+        return alphaQuote(symbol);
+    }
+
+    async function stockQuote(symbol) {
+        return cache.wrap(`stock:quote:${symbol}`, quoteTtl, () => withAlternatives(symbol, providerQuote));
+    }
+
+    async function providerCandles(symbol) {
+        if (env.TWELVE_DATA_API_KEY) return withPlanFallback(() => twelveCandles(symbol), () => alphaCandles(symbol));
+        return alphaCandles(symbol);
     }
 
     async function stockCandles(symbol) {
-        return cache.wrap(`stock:candles:${symbol}`, TTL.candles, async () => {
-            if (env.TWELVE_DATA_API_KEY) return withPlanFallback(() => twelveCandles(symbol), () => alphaCandles(symbol));
-            return alphaCandles(symbol);
-        });
+        return cache.wrap(`stock:candles:${symbol}`, TTL.candles, () => withAlternatives(symbol, providerCandles));
     }
 
     async function stockSearch(query) {

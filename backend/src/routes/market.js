@@ -62,7 +62,9 @@ function marketRouter({ market }) {
         const history = await market.getDailyCandles(type, symbol);
         const { series, summary } = analyze(history.candles);
         res.json({
-            symbol,
+            symbol: history.symbol ?? symbol,
+            requestedSymbol: symbol,
+            note: history.note ?? null,
             assetType: type,
             currency: history.currency,
             source: history.source,

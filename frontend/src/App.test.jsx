@@ -121,4 +121,20 @@ describe('App', () => {
         expect(portfolioCall[0]).toBe('/api/portfolio?currency=INR');
         localStorage.removeItem('quantumtrade-display-currency');
     });
+
+    it('tells the user when another listing was used for the symbol they looked up', async () => {
+        mockApi({
+            'GET /auth/me': () => [200, { user }],
+            ...signedInHandlers,
+            'GET /market/quote/stock/TCS.NSE': () => [200, { quote: {
+                symbol: 'TCS.BSE', resolvedFrom: 'TCS.NSE', currency: 'INR', price: 3900, changePercent: 0.5, asOf: '2024-05-01T00:00:00Z', source: 'Alpha Vantage',
+                open: null, high: null, low: null, previousClose: null, volume: null,
+                note: 'Showing TCS.BSE (BSE listing) because TCS.NSE could not be loaded on your data plan.',
+            } }],
+        });
+        renderApp('/markets?type=stock&symbol=TCS.NSE');
+        expect(await screen.findByText(/Showing TCS\.BSE \(BSE listing\)/)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'TCS.BSE' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Analyze/ })).toHaveAttribute('href', '/analysis/stock/TCS.BSE');
+    });
 });
