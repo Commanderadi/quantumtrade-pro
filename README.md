@@ -1,221 +1,185 @@
-# 🚀 QuantumTrade Pro - Advanced Financial Intelligence Platform
+# QuantumTrade Pro
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://www.mysql.com/)
+Track stocks and cryptocurrencies, record your trades, see live portfolio
+performance, run technical analysis and get price alerts — in one self-hosted
+web app.
 
-> **Professional-grade financial intelligence platform with AI-powered market analysis, portfolio management, and predictive insights for Indian and global markets.**
+- **Portfolio tracking** – record buys and sells (with fees and trade dates). Holdings, average cost, realized and unrealized P&L are computed from your trade ledger using exact decimal arithmetic. Totals are kept separate per currency (e.g. USD and INR are never summed).
+- **Watchlist** – live quotes for stocks and crypto.
+- **Technical analysis** – SMA 20/50, RSI 14, MACD (12, 26, 9), Bollinger Bands (20, 2), ATR 14 and volume computed from real daily price history, plus a rule-based signal summary.
+- **Price alerts** – price above/below or daily % change, evaluated in the background against live quotes.
+- **Accounts** – secure sign-up/sign-in, password change, “sign out everywhere”, and account deletion.
+- **Light and dark themes**, responsive layout for phones.
 
-## 🌟 Features
+> Information only — not investment advice. Quotes may be delayed depending on your data provider.
 
-### 🏢 **Core Platform**
-- **📊 Real-time Market Data** - Live NSE, BSE, and global markets
-- **💼 Portfolio Management** - Comprehensive investment tracking
-- **🤖 AI-Powered Analytics** - Machine learning insights
-- **🔔 Smart Price Alerts** - Intelligent notifications
-- **📈 Advanced Charts** - Professional technical analysis
+## Architecture
 
-### 🇮🇳 **Indian Markets Integration**
-- **NIFTY 50 & SENSEX** - Live Indian market indices
-- **NSE/BSE Support** - Complete Indian stock coverage
-- **Indian Cryptocurrency** - WazirX, CoinDCX integration
-- **SEBI Compliance** - Regulatory adherence
-- **INR Pricing** - Indian Rupee support
-
-### 🚀 **Advanced Capabilities**
-- **Trading Signals** - AI-generated market signals
-- **Sentiment Analysis** - Social media market mood
-- **Natural Language Queries** - Ask AI about markets
-- **Predictive Analytics** - Market forecasting
-- **Risk Assessment** - Portfolio risk scoring
-
-## 🛠️ Technology Stack
-
-### **Frontend**
-- **React 18** - Modern UI framework
-- **CSS3** - Professional styling with gradients and animations
-- **React Router** - Client-side routing
-- **Axios** - HTTP client for API calls
-- **React Icons** - Professional icon library
-
-### **Backend**
-- **Node.js** - Server runtime
-- **Express.js** - Web framework
-- **MySQL** - Relational database
-- **JWT** - Authentication & authorization
-- **Bcrypt** - Password hashing
-
-### **APIs & Services**
-- **CoinGecko** - Cryptocurrency data
-- **Alpha Vantage** - Stock market data
-- **NSE/BSE APIs** - Indian market data
-- **News APIs** - Financial news
-
-## 🚀 Quick Start
-
-### **Prerequisites**
-- Node.js 18.x or higher
-- MySQL 8.0 or higher
-- Git
-
-### **1. Clone Repository**
-```bash
-git clone https://github.com/Commanderadi/quantumtrade-pro.git
-cd quantumtrade-pro
+```
+frontend/   React 18 + Vite SPA (react-router, recharts)
+backend/    Node.js 22 + Express 5 REST API, MySQL 8
+  src/
+    app.js              express app (security headers, rate limits, routes)
+    server.js           startup, migrations, graceful shutdown
+    config/env.js       validated configuration
+    db/                 connection pool + SQL migrations
+    routes/             auth, market, watchlist, portfolio, alerts
+    services/           market data providers, indicators, portfolio maths, alerts
+    jobs/               background alert scheduler
+  test/                 unit tests + integration tests against MySQL
+Dockerfile              single image: API + built frontend
+docker-compose.yml      app + MySQL
 ```
 
-### **2. Backend Setup**
+In production the API also serves the built frontend, so the browser talks to a
+single origin and the session cookie never needs to cross sites.
+
+### Market data providers
+
+| Asset  | Quotes                                    | History / search | Key |
+| ------ | ----------------------------------------- | ---------------- | --- |
+| Stocks | [Finnhub](https://finnhub.io) if configured, otherwise [Alpha Vantage](https://www.alphavantage.co) | Alpha Vantage | `FINNHUB_API_KEY`, `ALPHA_VANTAGE_API_KEY` |
+| Crypto | [CoinGecko](https://www.coingecko.com/en/api) | CoinGecko | optional `COINGECKO_API_KEY` |
+
+Responses are cached in memory (quotes 60 s, daily history 6 h, search 24 h) and
+concurrent identical requests are merged. When a provider is unavailable or rate
+limited the API returns a clear `502`/`503` error — it never substitutes made-up prices.
+
+**Free-tier limits matter:** Alpha Vantage's free key allows 25 requests per day,
+which is only enough for light personal use. Add a free Finnhub key for stock
+quotes, or use a paid Alpha Vantage plan. Exchange suffixes such as
+`RELIANCE.BSE` work for non-US listings (Alpha Vantage), and the listing currency
+is inferred from the suffix.
+
+## Quick start (Docker)
+
+```bash
+cp .env.example .env
+# edit .env: set DB_PASSWORD, DB_ROOT_PASSWORD, JWT_SECRET and your API keys
+docker compose up --build
+```
+
+Open http://localhost:8080 and create an account. Database migrations run
+automatically on start.
+
+## Local development
+
+Requirements: Node.js 22 (see `.nvmrc`) and MySQL 8.
+
+```bash
+# 1. Database
+mysql -u root -p -e "CREATE DATABASE quantumtrade; CREATE USER 'quantumtrade'@'localhost' IDENTIFIED BY 'change-me'; GRANT ALL ON quantumtrade.* TO 'quantumtrade'@'localhost';"
+
+# 2. API (http://localhost:5000)
+cd backend
+cp env.example .env        # set DB_* values, JWT_SECRET and API keys
+npm install
+npm run dev                # migrates the database, restarts on changes
+
+# 3. Web app (http://localhost:3000, proxies /api to the backend)
+cd ../frontend
+npm install
+npm run dev
+```
+
+## Configuration
+
+All backend settings are environment variables, validated at start-up
+(the server refuses to start with an invalid configuration). See
+[`backend/env.example`](backend/env.example) for the full list. The important ones:
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | MySQL connection |
+| `JWT_SECRET` | yes | ≥ 32 random characters used to sign session tokens |
+| `SESSION_TTL_HOURS` | no | Session lifetime (default 168 = 7 days) |
+| `COOKIE_SECURE` | no | Send cookies and HSTS only over HTTPS. Defaults to `true` in production |
+| `TRUST_PROXY` | no | Number of reverse proxies in front of the app (for client IPs in rate limiting) |
+| `CORS_ORIGINS` | no | Only if the frontend is hosted on a different origin |
+| `ALPHA_VANTAGE_API_KEY`, `FINNHUB_API_KEY`, `COINGECKO_API_KEY` | see above | Market data |
+| `ALERT_CHECK_INTERVAL_SECONDS` | no | Alert evaluation interval (default 300, `0` disables) |
+| `MIGRATE_ON_START` | no | Set `false` to run `npm run migrate` as a separate deploy step |
+| `STATIC_DIR` | no | Directory of the built frontend to serve (set automatically in Docker) |
+
+The frontend needs no configuration when served by the API. To host it
+separately, build with `VITE_API_URL=https://api.example.com` and set
+`CORS_ORIGINS` on the API.
+
+## Security
+
+- Passwords hashed with bcrypt (cost 12). Login takes the same time whether or not the email exists.
+- Sessions are signed JWTs in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` over HTTPS); no tokens in `localStorage`. Changing your password or “sign out everywhere” revokes all existing sessions.
+- State-changing requests require an `X-Requested-With` header (CSRF defence in addition to SameSite cookies).
+- Strict input validation on every endpoint (zod); parameterised SQL only.
+- Helmet security headers including a Content Security Policy; HSTS when served over HTTPS.
+- Rate limits: 300 requests/min per IP overall, 20 auth attempts per 15 min per IP.
+- Every query is scoped to the signed-in user; the integration tests check that users can't read or change each other's data.
+- Portfolio writes are serialised per user inside a database transaction, so concurrent requests cannot oversell.
+
+## API overview
+
+All endpoints are under `/api` and return JSON. Errors look like
+`{ "error": "message", "details": [{ "field": "...", "message": "..." }] }`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/health`, `/health/ready` | Liveness / readiness (checks the DB) |
+| `POST` | `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/logout-all` | Session management |
+| `GET` `DELETE` | `/auth/me` | Current user / delete account |
+| `POST` | `/auth/password` | Change password |
+| `GET` | `/market/quote/:assetType/:symbol` | Latest quote (`assetType` = `stock` or `crypto`) |
+| `GET` | `/market/search?assetType=&q=` | Symbol search |
+| `GET` | `/market/analysis/:assetType/:symbol` | Daily candles + indicators + signal summary |
+| `GET` | `/market/crypto/top?limit=` | Top cryptocurrencies by market cap |
+| `GET` | `/market/crypto/:symbol/info` | Coin details |
+| `GET` `POST` | `/watchlist` | List (with quotes) / add |
+| `DELETE` | `/watchlist/:assetType/:symbol` | Remove |
+| `GET` | `/portfolio` | Valued positions and per-currency totals |
+| `GET` `POST` | `/portfolio/transactions` | Trade history (paginated) / record a trade |
+| `DELETE` | `/portfolio/transactions/:id` | Delete a trade (holdings are recomputed) |
+| `GET` `POST` | `/alerts` | List / create |
+| `PATCH` `DELETE` | `/alerts/:id` | Update, pause/re-arm / delete |
+| `POST` | `/alerts/check` | Evaluate your alerts now |
+
+Everything except `/health` and the register, login and logout endpoints
+requires a session.
+
+## Testing
+
 ```bash
 cd backend
-npm install
-cp env.example .env
-# Edit .env with your database credentials
-npm start
-```
+npm run lint
+npm run test:unit                                    # no database needed
+TEST_DB_USER=root TEST_DB_PASSWORD=secret npm test   # unit + integration (drops/creates `quantumtrade_test`)
 
-### **3. Frontend Setup**
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### **4. Database Setup**
-```bash
-# Create MySQL database and run schema
-mysql -u root -p < backend/database/schema.sql
-```
-
-## 📁 Project Structure
-
-```
-quantumtrade-pro/
-├── 🚀 start_servers.bat      # Windows startup script
-├── 📚 SETUP_QUICK.md         # Quick setup guide
-├── 📖 README.md              # This file
-├── 🔧 .gitignore             # Git ignore rules
-│
-├── ⚙️ backend/               # Backend server
-│   ├── 🖥️ server.js         # Main server
-│   ├── 📦 package.json      # Dependencies
-│   ├── 🛣️ routes/          # API endpoints
-│   ├── 🎮 controllers/      # Business logic
-│   ├── 🔐 middleware/       # Authentication
-│   ├── ⚙️ config/          # Configuration
-│   └── 🗄️ database/        # Database schema
-│
-└── 🎨 frontend/              # React application
-    ├── 📦 package.json      # Dependencies
-    ├── 🌐 public/           # Static assets
-    └── 📝 src/              # Source code
-        ├── 🎯 App.js        # Main application
-        └── 🧩 components/   # React components
-```
-
-## 🎯 Key Components
-
-### **📊 Dashboard**
-- Market overview and portfolio summary
-- Real-time data widgets
-- Performance metrics
-
-### **💼 Portfolio Management**
-- Investment tracking
-- Transaction history
-- Performance analytics
-- Risk assessment
-
-### **🇮🇳 Indian Markets**
-- Live NIFTY 50 & SENSEX
-- Top gainers/losers
-- Stock search and analysis
-- Market news
-
-### **🤖 AI Intelligence**
-- Market predictions
-- Trading signals
-- Sentiment analysis
-- Natural language queries
-
-## 🔐 Environment Variables
-
-Create a `.env` file in the backend directory:
-
-```env
-# Database
-DB_HOST=localhost
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_NAME=quantumtrade_pro
-
-# JWT
-JWT_SECRET=your_jwt_secret_key
-
-# Server
-PORT=5000
-
-# API Keys
-ALPHA_VANTAGE_API_KEY=your_key
-COINGECKO_API_KEY=your_key
-```
-
-## 🚀 Deployment
-
-### **Local Development**
-```bash
-# Start both servers
-./start_servers.bat
-```
-
-### **Production Build**
-```bash
-cd frontend
+cd ../frontend
+npm run lint
+npm test
 npm run build
 ```
 
-### **Docker (Coming Soon)**
-```bash
-docker-compose up -d
-```
+CI (`.github/workflows/ci.yml`) runs all of the above against a MySQL service,
+audits production dependencies and builds the Docker image.
 
-## 🤝 Contributing
+## Going to production — checklist
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- [ ] Serve over HTTPS (load balancer or reverse proxy). Keep `COOKIE_SECURE` at its production default of `true`, and set `TRUST_PROXY` to the number of proxies in front of the app.
+- [ ] Use a strong random `JWT_SECRET` and database password, stored in your platform's secret manager.
+- [ ] Use a managed MySQL 8 instance with automated backups.
+- [ ] Use market data plans whose rate limits match your number of users.
+- [ ] Ship the JSON logs from stdout to your log platform, and monitor `/api/health/ready`.
+- [ ] **Running more than one instance?** Rate limits and the market data cache are in memory, per instance. Move them to a shared store (e.g. Redis) when scaling out. Alert checks and migrations already use MySQL locks, so they are safe across instances.
 
-## 📝 License
+## Upgrading from v1
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+v2 is a rewrite with a new schema (`users`, `holdings`, `transactions`,
+`watchlist_items`, `alerts`) and a new default database name (`quantumtrade`).
+Point it at a **new, empty database**; the old `stock_crypto_db` schema is not
+migrated automatically. The old JWT-in-`localStorage` sessions are not
+compatible, so users need to sign in again.
 
-## 🙏 Acknowledgments
+## Known limitations
 
-- **React Team** - For the amazing framework
-- **Node.js Community** - For the robust runtime
-- **Financial APIs** - For market data
-- **Open Source Community** - For inspiration and tools
-
-## 📞 Support
-
-- **GitHub Issues** - [Report bugs or request features](https://github.com/Commanderadi/quantumtrade-pro/issues)
-- **Email** - commanderadi@github.com
-- **Documentation** - [Wiki](https://github.com/Commanderadi/quantumtrade-pro/wiki)
-
-## 🌟 Roadmap
-
-- [ ] **Mobile App** - React Native
-- [ ] **Real Trading** - Broker integration
-- [ ] **Advanced AI** - Machine learning models
-- [ ] **Social Trading** - Community features
-- [ ] **International Markets** - Global expansion
-- [ ] **Derivatives** - Options & futures
-- [ ] **Tax Optimization** - Smart tax strategies
-
----
-
-**⭐ Star this repository if you find it helpful!**
-
-**Made with ❤️ by [Commanderadi](https://github.com/Commanderadi)** 
+- Price alerts appear in the app (dashboard banner and Alerts page). Email and push notifications are not implemented yet.
+- Crypto prices are in USD only. Stock prices are in their listing currency, and there is no FX conversion between currencies.
+- CoinGecko's free daily history only has closing prices, so crypto ATR measures close-to-close movement.
