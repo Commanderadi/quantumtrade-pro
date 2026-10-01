@@ -16,6 +16,9 @@ frontend/build/
 frontend/dist/
 backend/dist/
 
+# Keep example env files
+!.env.example
+
 # Logs
 logs
 *.log
