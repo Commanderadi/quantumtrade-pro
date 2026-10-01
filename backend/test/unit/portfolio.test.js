@@ -81,3 +81,38 @@ test('valuePortfolio values positions per currency and flags missing quotes', as
     assert.equal(aapl.unrealizedPnlPercent, 20);
     assert.equal(aapl.allocationPercent, Math.round((1200 / 26200) * 10000) / 100);
 });
+
+test('valuePortfolio combines currencies at the current exchange rate', async () => {
+    const holdings = [
+        { symbol: 'AAPL', asset_type: 'stock', quantity: '10', average_cost: '100', currency: 'USD', realized_pnl: '10' },
+        { symbol: 'TCS.NSE', asset_type: 'stock', quantity: '1', average_cost: '3000', currency: 'INR', realized_pnl: '0' },
+    ];
+    const market = {
+        async getQuotes(_type, symbols) {
+            const prices = { AAPL: { price: 120, change: 2 }, 'TCS.NSE': { price: 3300, change: -30 } };
+            return { quotes: new Map(symbols.map((s) => [s, { ...prices[s], changePercent: 0, asOf: 'now' }])), errors: new Map() };
+        },
+        async fxRate(from, to) {
+            if (from === to) return 1;
+            if (from === 'USD' && to === 'INR') return 80;
+            throw new Error('unknown');
+        },
+    };
+    const { combined, totals } = await valuePortfolio(holdings, market, 'INR');
+    assert.equal(totals.length, 2);
+    assert.equal(combined.currency, 'INR');
+    assert.equal(combined.marketValue, 1200 * 80 + 3300);
+    assert.equal(combined.costBasis, 1000 * 80 + 3000);
+    assert.equal(combined.unrealizedPnl, 200 * 80 + 300);
+    assert.equal(combined.realizedPnl, 800);
+    assert.equal(combined.dayChange, 20 * 80 - 30);
+    assert.deepEqual(combined.rates, { USD: 80, INR: 1 });
+    assert.deepEqual(combined.missingRates, []);
+
+    const none = await valuePortfolio(holdings, market, null);
+    assert.equal(none.combined, null);
+
+    const missing = await valuePortfolio(holdings, market, 'EUR');
+    assert.deepEqual(missing.combined.missingRates.sort(), ['INR', 'USD']);
+    assert.equal(missing.combined.marketValue, 0);
+});

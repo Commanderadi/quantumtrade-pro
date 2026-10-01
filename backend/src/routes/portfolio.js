@@ -44,12 +44,12 @@ const serializeTx = (t) => ({
 function portfolioRouter({ db, market }) {
     const router = express.Router();
 
-    router.get('/', async (req, res) => {
+    router.get('/', validate({ query: z.object({ currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/).optional() }) }), async (req, res) => {
         const [holdings] = await db.execute(
             'SELECT symbol, asset_type, quantity, average_cost, currency, realized_pnl FROM holdings WHERE user_id = ? ORDER BY asset_type, symbol',
             [req.user.id]
         );
-        res.json(await valuePortfolio(holdings, market));
+        res.json(await valuePortfolio(holdings, market, req.valid.query.currency ?? null));
     });
 
     router.get('/transactions', validate({ query: listSchema }), async (req, res) => {

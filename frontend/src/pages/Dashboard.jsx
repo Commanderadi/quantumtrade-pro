@@ -6,11 +6,16 @@ import { useAsync, useInterval } from '../lib/useAsync';
 import { formatDate, formatMoney, formatNumber, formatSignedMoney, formatPercent, ALERT_CONDITIONS } from '../lib/format';
 import { AssetBadge, Card, Change, EmptyState, ErrorMessage, Notice, Spinner, Stat } from '../components/ui';
 import SymbolSearch from '../components/SymbolSearch';
+import IndicesStrip from '../components/IndicesStrip';
+import CombinedTotals from '../components/CombinedTotals';
+import CurrencySelect from '../components/CurrencySelect';
+import { useCurrency } from '../context/CurrencyContext';
 
 const REFRESH_MS = 60_000;
 
 export default function Dashboard() {
-    const portfolio = useAsync((signal) => Portfolio.summary({ signal }), []);
+    const { apiCurrency } = useCurrency();
+    const portfolio = useAsync((signal) => Portfolio.summary(apiCurrency, { signal }), [apiCurrency]);
     const watchlist = useAsync((signal) => Watchlist.list({ signal }), []);
     const alerts = useAsync((signal) => Alerts.list({ signal }), []);
     const top = useAsync((signal) => Market.topCryptos(8, { signal }), []);
@@ -54,7 +59,10 @@ export default function Dashboard() {
         <div className="page">
             <div className="page-header">
                 <h1>Dashboard</h1>
+                <CurrencySelect />
             </div>
+
+            <IndicesStrip />
 
             {recentlyTriggered.length > 0 && (
                 <Notice tone="warning">
@@ -151,7 +159,7 @@ export default function Dashboard() {
 function PortfolioOverview({ state }) {
     if (state.loading && !state.data) return <Spinner label="Loading portfolio…" />;
     if (state.error) return <ErrorMessage error={state.error} onRetry={state.reload} />;
-    const { totals } = state.data;
+    const { totals, combined } = state.data;
     if (!totals.length) {
         return (
             <Card>
@@ -160,6 +168,9 @@ function PortfolioOverview({ state }) {
                 </EmptyState>
             </Card>
         );
+    }
+    if (combined) {
+        return <CombinedTotals combined={combined} action={<Link to="/portfolio" className="small">Details</Link>} />;
     }
     return (
         <div className="grid grid-auto">

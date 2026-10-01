@@ -5,13 +5,17 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { Portfolio } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { formatDate, formatMoney, formatPercent, formatQuantity, formatSignedMoney, trendClass } from '../lib/format';
+import CombinedTotals from '../components/CombinedTotals';
+import CurrencySelect from '../components/CurrencySelect';
+import { useCurrency } from '../context/CurrencyContext';
 import { AssetBadge, Card, Change, EmptyState, ErrorMessage, Segmented, Spinner, Stat, ASSET_OPTIONS } from '../components/ui';
 
 const PAGE_SIZE = 25;
 const PIE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6', '#ec4899', '#84cc16', '#6366f1', '#f97316'];
 
 export default function PortfolioPage() {
-    const summary = useAsync((signal) => Portfolio.summary({ signal }), []);
+    const { apiCurrency } = useCurrency();
+    const summary = useAsync((signal) => Portfolio.summary(apiCurrency, { signal }), [apiCurrency]);
     const [page, setPage] = useState(0);
     const txs = useAsync((signal) => Portfolio.transactions({ limit: PAGE_SIZE, offset: page * PAGE_SIZE }, { signal }), [page]);
     const [showForm, setShowForm] = useState(false);
@@ -42,6 +46,7 @@ export default function PortfolioPage() {
         <div className="page">
             <div className="page-header">
                 <h1>Portfolio</h1>
+                <CurrencySelect />
                 <button type="button" className="btn btn-primary" onClick={() => setShowForm((s) => !s)} aria-expanded={showForm}>
                     <FiPlus aria-hidden="true" /> Record trade
                 </button>
@@ -68,6 +73,7 @@ export default function PortfolioPage() {
                 </Card>
             ) : (
                 <>
+                    {summary.data.combined && <CombinedTotals combined={summary.data.combined} title={`Combined (${summary.data.combined.currency})`} />}
                     {summary.data.totals.map((t) => (
                         <TotalsCard key={t.currency} totals={t} positions={positions.filter((p) => p.currency === t.currency && p.marketValue)} />
                     ))}
@@ -272,7 +278,7 @@ function TransactionForm({ onDone, onCancel }) {
                 </div>
                 <label>
                     Symbol
-                    <input value={form.symbol} onChange={set('symbol')} required maxLength={20} placeholder={form.assetType === 'crypto' ? 'BTC' : 'AAPL or RELIANCE.BSE'} autoCapitalize="characters" spellCheck="false" />
+                    <input value={form.symbol} onChange={set('symbol')} required maxLength={20} placeholder={form.assetType === 'crypto' ? 'BTC' : 'AAPL, TCS.NSE, RELIANCE.BSE'} autoCapitalize="characters" spellCheck="false" />
                 </label>
                 <label>
                     Side

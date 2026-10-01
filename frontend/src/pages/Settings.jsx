@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Auth } from '../lib/api';
 import { formatDate } from '../lib/format';
 import { Card, ErrorMessage, Notice, Segmented } from '../components/ui';
+import CurrencySelect from '../components/CurrencySelect';
 
 export default function Settings() {
     const { user, setUser, logout } = useAuth();
@@ -23,6 +24,10 @@ export default function Settings() {
             </Card>
             <Card title="Appearance">
                 <Segmented label="Theme" value={theme} onChange={(t) => t !== theme && toggle()} options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]} />
+            </Card>
+            <Card title="Currency">
+                <CurrencySelect />
+                <p className="muted small">Portfolio totals can be converted into one currency using today’s exchange rates. Trades are always stored in their own currency.</p>
             </Card>
             <ChangePassword onChanged={setUser} />
             <Sessions onDone={logout} />

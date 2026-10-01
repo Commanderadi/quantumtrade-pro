@@ -93,7 +93,7 @@ export default function SymbolSearch({ onSelect, assetType: controlledType, onAs
                     }}
                     onFocus={() => setOpen(true)}
                     onKeyDown={onKeyDown}
-                    placeholder={placeholder ?? (assetType === 'crypto' ? 'Symbol or name, e.g. BTC' : 'Symbol or company, e.g. AAPL')}
+                    placeholder={placeholder ?? (assetType === 'crypto' ? 'Symbol or name, e.g. BTC' : 'Symbol or company, e.g. AAPL or TCS.NSE')}
                     aria-label="Symbol"
                     role="combobox"
                     aria-expanded={open && results.length > 0}

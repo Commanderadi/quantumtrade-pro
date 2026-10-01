@@ -4,6 +4,7 @@ Track stocks and cryptocurrencies, record your trades, see live portfolio
 performance, run technical analysis and get price alerts — in one self-hosted
 web app.
 
+- **India and the world** – NSE/BSE and international stocks (via Twelve Data), crypto, INR/USD/EUR/GBP display currency and a markets strip with Nifty 50, S&P 500, Nasdaq 100 and Dow Jones trackers.
 - **Portfolio tracking** – record buys and sells (with fees and trade dates). Holdings, average cost, realized and unrealized P&L are computed from your trade ledger using exact decimal arithmetic. Totals are kept separate per currency (e.g. USD and INR are never summed).
 - **Watchlist** – live quotes for stocks and crypto.
 - **Technical analysis** – SMA 20/50, RSI 14, MACD (12, 26, 9), Bollinger Bands (20, 2), ATR 14 and volume computed from real daily price history, plus a rule-based signal summary.
@@ -36,20 +37,32 @@ single origin and the session cookie never needs to cross sites.
 
 ### Market data providers
 
-| Asset  | Quotes                                    | History / search | Key |
-| ------ | ----------------------------------------- | ---------------- | --- |
-| Stocks | [Finnhub](https://finnhub.io) if configured, otherwise [Alpha Vantage](https://www.alphavantage.co) | Alpha Vantage | `FINNHUB_API_KEY`, `ALPHA_VANTAGE_API_KEY` |
-| Crypto | [CoinGecko](https://www.coingecko.com/en/api) | CoinGecko | optional `COINGECKO_API_KEY` |
+| Asset  | Quotes / history / search | Key |
+| ------ | ------------------------- | --- |
+| Stocks (India, US and worldwide) | [Twelve Data](https://twelvedata.com) — **recommended**; used first when its key is set | `TWELVE_DATA_API_KEY` |
+| Stocks (fallbacks) | [Finnhub](https://finnhub.io) quotes, [Alpha Vantage](https://www.alphavantage.co) quotes/history/search | `FINNHUB_API_KEY`, `ALPHA_VANTAGE_API_KEY` |
+| Crypto | [CoinGecko](https://www.coingecko.com/en/api) | optional `COINGECKO_API_KEY` |
+| Exchange rates | CoinGecko (fiat rates) | none |
 
-Responses are cached in memory (quotes 60 s, daily history 6 h, search 24 h) and
+Responses are cached in memory (stock quotes 120 s by default, crypto quotes 60 s, daily history 6 h, search 24 h, exchange rates 10 min) and
 concurrent identical requests are merged. When a provider is unavailable or rate
 limited the API returns a clear `502`/`503` error — it never substitutes made-up prices.
 
-**Free-tier limits matter:** Alpha Vantage's free key allows 25 requests per day,
-which is only enough for light personal use. Add a free Finnhub key for stock
-quotes, or use a paid Alpha Vantage plan. Exchange suffixes such as
-`RELIANCE.BSE` work for non-US listings (Alpha Vantage), and the listing currency
-is inferred from the suffix.
+**Symbols for non-US stocks** carry an exchange suffix: `TCS.NSE`, `RELIANCE.BSE`,
+`VOD.LON`. The search box fills these in for you with Twelve Data, and the
+listing currency (INR for `.NSE`/`.BSE`, GBP for `.LON`, …) is recorded with each trade.
+
+**Free-tier limits matter.** Twelve Data's free plan allows only a handful of
+requests per minute and a daily cap, Alpha Vantage's free key only 25 requests per day.
+Keep `STOCK_QUOTE_CACHE_SECONDS` at 120 or more and keep watchlists small on free plans,
+or move to a paid plan for more users. Plan coverage changes over time — check the
+provider's pricing page for what your plan includes (for example, some plans do not
+include index symbols, which is why the dashboard tracks indices through ETFs).
+
+**Display currency.** Portfolio totals can be converted into INR, USD, EUR or GBP
+(Settings, or the selector on the Dashboard and Portfolio pages) using today's exchange rate.
+Trades are always stored in their own currency, and profit/loss in the converted view does not
+include currency movements since purchase.
 
 ## Quick start (Docker)
 
@@ -96,7 +109,9 @@ All backend settings are environment variables, validated at start-up
 | `COOKIE_SECURE` | no | Send cookies and HSTS only over HTTPS. Defaults to `true` in production |
 | `TRUST_PROXY` | no | Number of reverse proxies in front of the app (for client IPs in rate limiting) |
 | `CORS_ORIGINS` | no | Only if the frontend is hosted on a different origin |
-| `ALPHA_VANTAGE_API_KEY`, `FINNHUB_API_KEY`, `COINGECKO_API_KEY` | see above | Market data |
+| `TWELVE_DATA_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `FINNHUB_API_KEY`, `COINGECKO_API_KEY` | see above | Market data |
+| `STOCK_QUOTE_CACHE_SECONDS` | no | How long stock quotes are reused (default 120) |
+| `MARKET_INDICES` | no | Dashboard indices as `Label=SYMBOL,…` (defaults to SPY, QQQ, DIA and the Nifty 50 ETF) |
 | `ALERT_CHECK_INTERVAL_SECONDS` | no | Alert evaluation interval (default 300, `0` disables) |
 | `MIGRATE_ON_START` | no | Set `false` to run `npm run migrate` as a separate deploy step |
 | `STATIC_DIR` | no | Directory of the built frontend to serve (set automatically in Docker) |
@@ -129,12 +144,14 @@ All endpoints are under `/api` and return JSON. Errors look like
 | `POST` | `/auth/password` | Change password |
 | `GET` | `/market/quote/:assetType/:symbol` | Latest quote (`assetType` = `stock` or `crypto`) |
 | `GET` | `/market/search?assetType=&q=` | Symbol search |
+| `GET` | `/market/indices` | Dashboard index quotes (per-item errors) |
+| `GET` | `/market/fx?from=&to=` | Exchange rate between two currencies |
 | `GET` | `/market/analysis/:assetType/:symbol` | Daily candles + indicators + signal summary |
 | `GET` | `/market/crypto/top?limit=` | Top cryptocurrencies by market cap |
 | `GET` | `/market/crypto/:symbol/info` | Coin details |
 | `GET` `POST` | `/watchlist` | List (with quotes) / add |
 | `DELETE` | `/watchlist/:assetType/:symbol` | Remove |
-| `GET` | `/portfolio` | Valued positions and per-currency totals |
+| `GET` | `/portfolio?currency=` | Valued positions, per-currency totals and (optionally) a combined total in one currency |
 | `GET` `POST` | `/portfolio/transactions` | Trade history (paginated) / record a trade |
 | `DELETE` | `/portfolio/transactions/:id` | Delete a trade (holdings are recomputed) |
 | `GET` `POST` | `/alerts` | List / create |
@@ -181,5 +198,5 @@ compatible, so users need to sign in again.
 ## Known limitations
 
 - Price alerts appear in the app (dashboard banner and Alerts page). Email and push notifications are not implemented yet.
-- Crypto prices are in USD only. Stock prices are in their listing currency, and there is no FX conversion between currencies.
+- Crypto prices are in USD. Stock prices are in their listing currency; the display-currency option converts totals at today's exchange rate only.
 - CoinGecko's free daily history only has closing prices, so crypto ATR measures close-to-close movement.

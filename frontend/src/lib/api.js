@@ -68,6 +68,7 @@ export const Market = {
     search: (assetType, query, opts) => api(`/market/search${q({ assetType, q: query })}`, opts),
     topCryptos: (limit = 20, opts) => api(`/market/crypto/top${q({ limit })}`, opts),
     cryptoInfo: (symbol, opts) => api(`/market/crypto/${enc(symbol)}/info`, opts),
+    indices: (opts) => api('/market/indices', opts),
     analysis: (assetType, symbol, opts) => api(`/market/analysis/${assetType}/${enc(symbol)}`, opts),
 };
 
@@ -78,7 +79,7 @@ export const Watchlist = {
 };
 
 export const Portfolio = {
-    summary: (opts) => api('/portfolio', opts),
+    summary: (currency, opts) => api(`/portfolio${q({ currency })}`, opts),
     transactions: (params = {}, opts) => api(`/portfolio/transactions${q(params)}`, opts),
     addTransaction: (body) => api('/portfolio/transactions', { method: 'POST', body }),
     deleteTransaction: (id) => api(`/portfolio/transactions/${id}`, { method: 'DELETE' }),
