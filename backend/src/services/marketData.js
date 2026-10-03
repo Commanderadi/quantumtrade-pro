@@ -153,7 +153,7 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
     }
 
     async function twelveCandles(symbol) {
-        const data = await twelveData('/time_series', { ...twelveParams(symbol), interval: '1day', outputsize: '250' });
+        const data = await twelveData('/time_series', { ...twelveParams(symbol), interval: '1day', outputsize: '1500' });
         const candles = (data.values || [])
             .map((v) => ({
                 date: v.datetime.slice(0, 10),
@@ -388,7 +388,7 @@ function createMarketData({ env, fetchImpl = globalThis.fetch, cache = new TtlCa
     async function cryptoCandles(symbol) {
         const id = await resolveCoinId(symbol);
         return cache.wrap(`crypto:candles:${id}`, TTL.candles, async () => {
-            const data = await coingecko(`/coins/${encodeURIComponent(id)}/market_chart`, { vs_currency: 'usd', days: '180', interval: 'daily' });
+            const data = await coingecko(`/coins/${encodeURIComponent(id)}/market_chart`, { vs_currency: 'usd', days: '365', interval: 'daily' });
             const volumes = new Map((data.total_volumes || []).map(([t, v]) => [new Date(t).toISOString().slice(0, 10), v]));
             const byDate = new Map();
             for (const [t, price] of data.prices || []) byDate.set(new Date(t).toISOString().slice(0, 10), price);

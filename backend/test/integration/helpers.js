@@ -8,6 +8,7 @@ const { migrate } = require('../../src/db/migrate');
 const { createApp } = require('../../src/app');
 const { createLogger } = require('../../src/logger');
 const { notFound } = require('../../src/utils/httpError');
+const { makeCandles } = require('../helpers/candles');
 
 // Integration tests need a MySQL server. Configure with TEST_DB_* variables;
 // the database named by TEST_DB_NAME is dropped and recreated on each run.
@@ -22,7 +23,7 @@ const dbConfig = {
 /** Deterministic stand-in for the market data providers. */
 function createFakeMarket() {
     const prices = {
-        stock: { AAPL: { price: 200, change: 2, changePercent: 1 }, MSFT: { price: 400, change: -4, changePercent: -1 } },
+        stock: { AAPL: { price: 200, change: 2, changePercent: 1 }, MSFT: { price: 400, change: -4, changePercent: -1 }, SPY: { price: 500, change: 1, changePercent: 0.2 }, SHORT: { price: 10, change: 0, changePercent: 0 } },
         crypto: { BTC: { price: 60000, change: 600, changePercent: 1 }, ETH: { price: 3000, change: -90, changePercent: -3 } },
     };
     const quote = (type, symbol) => {
@@ -43,10 +44,10 @@ function createFakeMarket() {
         },
         async getDailyCandles(type, symbol) {
             quote(type, symbol);
-            const candles = Array.from({ length: 60 }, (_, i) => ({
-                date: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10),
-                open: 100 + i, high: 102 + i, low: 99 + i, close: 101 + i, volume: 1000,
-            }));
+            // Deterministic multi-year history per symbol; SHORT has too little history on purpose.
+            const seed = [...symbol].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 100_000, 7);
+            const bars = symbol === 'SHORT' ? 100 : 600;
+            const candles = makeCandles(bars, { seed, drift: type === 'crypto' ? 0.0008 : 0.0004, vol: type === 'crypto' ? 0.03 : 0.012, start: Date.UTC(2023, 0, 1) });
             return { symbol, assetType: type, currency: 'USD', approximateOhlc: false, candles, source: 'test' };
         },
         search: async (type, q) => Object.keys(prices[type]).filter((s) => s.includes(q.toUpperCase())).map((symbol) => ({ symbol, assetType: type })),

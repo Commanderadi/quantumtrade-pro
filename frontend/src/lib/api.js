@@ -92,3 +92,11 @@ export const Alerts = {
     remove: (id) => api(`/alerts/${id}`, { method: 'DELETE' }),
     check: () => api('/alerts/check', { method: 'POST' }),
 };
+
+export const Quant = {
+    strategies: (opts) => api('/quant/strategies', opts),
+    backtest: (body) => api('/quant/backtest', { method: 'POST', body }),
+    risk: (params = {}, opts) => api(`/quant/risk${q(params)}`, opts),
+    optimize: (params = {}, opts) => api(`/quant/optimize${q(params)}`, opts),
+    scan: (params = {}, opts) => api(`/quant/scan${q(params)}`, opts),
+};

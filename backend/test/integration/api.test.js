@@ -288,7 +288,7 @@ test('market: quotes, search and technical analysis', async (t) => {
     const s = await a.get('/api/market/search?assetType=stock&q=aa').expect(200);
     assert.deepEqual(s.body.results.map((r) => r.symbol), ['AAPL']);
     const analysis = await a.get('/api/market/analysis/stock/AAPL').expect(200);
-    assert.equal(analysis.body.series.length, 60);
+    assert.equal(analysis.body.series.length, 500); // indicators use all 600 bars; the chart gets the latest 500
     assert.ok(analysis.body.summary.signals.length >= 3);
     assert.match(analysis.body.disclaimer, /Not investment advice/);
     await a.get('/api/market/crypto/top?limit=500').expect(400);

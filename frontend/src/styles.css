@@ -20,6 +20,12 @@
     --radius-sm: 8px;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     --sidebar-w: 232px;
+    /* Chart series (validated categorical pair, dark steps) and diverging scale. */
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --div-pos: #3987e5;
+    --div-neg: #e66767;
+    --div-mid: #383835;
     color-scheme: dark;
 }
 
@@ -41,6 +47,11 @@
     --down-soft: rgba(220, 38, 38, 0.1);
     --warn-soft: rgba(180, 83, 9, 0.1);
     --shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --div-pos: #2a78d6;
+    --div-neg: #e34948;
+    --div-mid: #f0efec;
     color-scheme: light;
 }
 
@@ -977,4 +988,84 @@ input[type='checkbox'] {
 }
 .page-header .inline-select + .btn {
     margin-left: 0;
+}
+
+/* ------------------------------------------------------------------ quant lab */
+.quant-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.verdict {
+    border-radius: var(--radius);
+    padding: 0.9rem 1.1rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-left-width: 5px;
+}
+.verdict ul {
+    margin: 0.4rem 0 0;
+    padding-left: 1.1rem;
+}
+.verdict-promising {
+    border-left-color: var(--up);
+}
+.verdict-inconclusive {
+    border-left-color: var(--warn);
+}
+.verdict-no_edge {
+    border-left-color: var(--down);
+}
+.verdict-baseline {
+    border-left-color: var(--text-muted);
+}
+.plain-list {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+.row-highlight td {
+    background: var(--accent-soft);
+}
+.sharebar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 160px;
+}
+.sharebar-track {
+    position: relative;
+    flex: 1;
+    height: 10px;
+    border-radius: 4px;
+    background: var(--surface-2);
+}
+.sharebar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--series-1);
+}
+.sharebar-marker {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 16px;
+    background: var(--text);
+    transform: translateX(-1px);
+}
+.sharebar-label {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    min-width: 3.2rem;
+    text-align: right;
+}
+.corr-table th[scope='row'] {
+    text-align: left;
+    color: var(--text);
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.corr-cell {
+    border: 2px solid var(--surface) !important;
+    color: var(--text);
 }
