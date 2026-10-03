@@ -54,12 +54,13 @@ function AnalysisCharts({ assetType, symbol }) {
 
     if (analysis.loading) return <Spinner label={`Loading ${symbol} history…`} />;
     if (analysis.error) return <ErrorMessage error={analysis.error} onRetry={analysis.reload} />;
-    const { summary, currency, source, approximateOhlc, disclaimer } = analysis.data;
+    const { summary, currency, source, approximateOhlc, disclaimer, note } = analysis.data;
     const money = (v) => formatMoney(v, currency);
     const last = series.at(-1);
 
     return (
         <>
+            {note && <Notice tone="warning">{note}</Notice>}
             <Card title="Signal summary" actions={<span className={`pill pill-${summary.overall}`}>{summary.overall.replace('_', ' ')}</span>}>
                 <ul className="signals">
                     {summary.signals.map((s) => (

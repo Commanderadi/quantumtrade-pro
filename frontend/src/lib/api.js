@@ -92,3 +92,20 @@ export const Alerts = {
     remove: (id) => api(`/alerts/${id}`, { method: 'DELETE' }),
     check: () => api('/alerts/check', { method: 'POST' }),
 };
+
+export const Quant = {
+    strategies: (opts) => api('/quant/strategies', opts),
+    backtest: (body) => api('/quant/backtest', { method: 'POST', body }),
+    risk: (params = {}, opts) => api(`/quant/risk${q(params)}`, opts),
+    optimize: (params = {}, opts) => api(`/quant/optimize${q(params)}`, opts),
+    scan: (params = {}, opts) => api(`/quant/scan${q(params)}`, opts),
+};
+
+export const Coach = {
+    account: (opts) => api('/coach/account', opts),
+    order: (body) => api('/coach/orders', { method: 'POST', body }),
+    trades: (limit = 50, opts) => api(`/coach/trades${q({ limit })}`, opts),
+    insights: (opts) => api('/coach/insights', opts),
+    lessons: (opts) => api('/coach/lessons', opts),
+    reset: (currency) => api('/coach/reset', { method: 'POST', body: { confirm: true, ...(currency && { currency }) } }),
+};

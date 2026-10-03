@@ -294,3 +294,88 @@ test('fallback does not mask rate limits from Alpha Vantage', async () => {
     const market = createMarketData({ env: { ...tdEnv, ALPHA_VANTAGE_API_KEY: 'av' }, fetchImpl });
     await assert.rejects(market.getQuote('stock', 'RELIANCE.BSE'), (err) => err.status === 503);
 });
+
+// ---------------------------------------------- alternative (BSE) listings
+
+const avEnv = { ...tdEnv, ALPHA_VANTAGE_API_KEY: 'av' };
+const avQuote = (price) => ({ 'Global Quote': { '05. price': String(price), '09. change': '1', '10. change percent': '0.1%', '07. latest trading day': '2024-05-01' } });
+
+test('an NSE symbol that the plan does not cover is served from its BSE listing, with a note', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['alphavantage.co', (url) => (url.includes('symbol=TCS.BSE') ? avQuote(3900) : { 'Global Quote': {} })],
+    ]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    const q = await market.getQuote('stock', 'TCS.NSE');
+    assert.equal(q.symbol, 'TCS.BSE');
+    assert.equal(q.resolvedFrom, 'TCS.NSE');
+    assert.equal(q.price, 3900);
+    assert.equal(q.currency, 'INR');
+    assert.match(q.note, /Showing TCS\.BSE \(BSE listing\) because TCS\.NSE/);
+});
+
+test('a bare name is resolved to its BSE listing through search', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['api.twelvedata.com/symbol_search', { data: [
+            { symbol: 'RELIANCE', instrument_name: 'Reliance Industries', exchange: 'NSE', country: 'India', currency: 'INR' },
+            { symbol: 'RELIANCE', instrument_name: 'Reliance Industries', exchange: 'BSE', country: 'India', currency: 'INR' },
+            { symbol: 'RELIANCEPP', instrument_name: 'Other', exchange: 'BSE', country: 'India', currency: 'INR' },
+        ] }],
+        ['alphavantage.co', (url) => (url.includes('symbol=RELIANCE.BSE') ? avQuote(1187.5) : { 'Global Quote': {} })],
+    ]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    const q = await market.getQuote('stock', 'RELIANCE');
+    assert.equal(q.symbol, 'RELIANCE.BSE');
+    assert.equal(q.resolvedFrom, 'RELIANCE');
+    assert.equal(q.price, 1187.5);
+    assert.ok(!calls.some((c) => c.includes('RELIANCEPP')), 'only exact ticker matches are used');
+});
+
+test('price history also falls back to the BSE listing', async () => {
+    const series = { 'Time Series (Daily)': { '2024-05-01': { '1. open': '1', '2. high': '2', '3. low': '1', '4. close': '1.5', '5. volume': '10' } } };
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/time_series', planBody, 404],
+        ['alphavantage.co', (url) => (url.includes('symbol=TCS.BSE') ? series : {})],
+    ]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    const h = await market.getDailyCandles('stock', 'TCS.NSE');
+    assert.equal(h.symbol, 'TCS.BSE');
+    assert.equal(h.resolvedFrom, 'TCS.NSE');
+    assert.equal(h.candles.length, 1);
+});
+
+test('a typo with no alternative still reports the original error', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/quote', { code: 404, message: '**symbol** not found: NOPE.', status: 'error' }, 404],
+        ['api.twelvedata.com/symbol_search', { data: [{ symbol: 'NOPE', instrument_name: 'X', exchange: 'NASDAQ', country: 'United States' }] }],
+    ]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'NOPE'), (err) => err.status === 404);
+});
+
+test('an NSE symbol with no BSE alternative reports the plan message', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['alphavantage.co', { 'Global Quote': {} }],
+    ]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'ZZZ.NSE'), (err) => err.status === 402);
+});
+
+test('rate limits while trying the alternative are surfaced', async () => {
+    const { fetchImpl } = fakeFetch([
+        ['api.twelvedata.com/quote', planBody, 404],
+        ['alphavantage.co', (url) => (url.includes('TCS.BSE') ? { Information: 'rate limit' } : { 'Global Quote': {} })],
+    ]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    await assert.rejects(market.getQuote('stock', 'TCS.NSE'), (err) => err.status === 503);
+});
+
+test('US symbols never trigger alternative lookups', async () => {
+    const { fetchImpl, calls } = fakeFetch([['api.twelvedata.com/quote', { close: '10', currency: 'USD' }]]);
+    const market = createMarketData({ env: avEnv, fetchImpl });
+    const q = await market.getQuote('stock', 'AAPL');
+    assert.equal(q.resolvedFrom, undefined);
+    assert.equal(calls.length, 1);
+});

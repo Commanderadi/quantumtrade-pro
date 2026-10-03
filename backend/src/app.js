@@ -18,6 +18,9 @@ const { marketRouter } = require('./routes/market');
 const { watchlistRouter } = require('./routes/watchlist');
 const { portfolioRouter } = require('./routes/portfolio');
 const { alertsRouter } = require('./routes/alerts');
+const { quantRouter } = require('./routes/quant');
+const { coachRouter } = require('./routes/coach');
+const { createCoach } = require('./services/coach/account');
 
 /**
  * Builds the Express app. Dependencies are injected so tests can supply a
@@ -90,11 +93,19 @@ function createApp({ env, db, market, logger, staticDir }) {
         keyGenerator: (req) => `alerts:${req.user.id}`,
     });
 
+    // Research endpoints fetch several price histories and run simulations, so they get a tighter per-user limit.
+    const quantLimiter = limiter({
+        windowMs: 60_000, limit: 20, message: 'Quant tools are limited to 20 runs per minute.',
+        keyGenerator: (req) => `quant:${req.user.id}`,
+    });
+
     app.use('/api/auth', authRouter({ env, db, requireAuth: auth, authLimiter }));
     app.use('/api/market', auth, marketRouter({ market }));
     app.use('/api/watchlist', auth, watchlistRouter({ db, market }));
     app.use('/api/portfolio', auth, portfolioRouter({ db, market }));
     app.use('/api/alerts', auth, alertsRouter({ db, market, logger, alertCheckLimiter }));
+    app.use('/api/quant', auth, quantRouter({ db, market, quantLimiter }));
+    app.use('/api/coach', auth, coachRouter({ coach: createCoach({ env, db, market }), quantLimiter }));
     app.use('/api', notFoundHandler);
 
     // Optionally serve the built frontend from the same origin (single-container deploys).

@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { FiBarChart2, FiBell, FiBriefcase, FiGrid, FiLogOut, FiMenu, FiMoon, FiSearch, FiSettings, FiSun, FiX } from 'react-icons/fi';
+import { FiActivity, FiAward, FiBarChart2, FiBell, FiBriefcase, FiGrid, FiLogOut, FiMenu, FiMoon, FiSearch, FiSettings, FiSun, FiX } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const NAV = [
     { to: '/', label: 'Dashboard', icon: FiGrid, end: true },
+    { to: '/coach', label: 'Coach', icon: FiAward },
     { to: '/portfolio', label: 'Portfolio', icon: FiBriefcase },
     { to: '/markets', label: 'Markets', icon: FiSearch },
     { to: '/analysis', label: 'Analysis', icon: FiBarChart2 },
+    { to: '/quant', label: 'Quant Lab', icon: FiActivity },
     { to: '/alerts', label: 'Alerts', icon: FiBell },
     { to: '/settings', label: 'Settings', icon: FiSettings },
 ];

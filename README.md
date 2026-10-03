@@ -6,6 +6,16 @@ web app.
 
 - **India and the world** – NSE/BSE and international stocks (via Twelve Data), crypto, INR/USD/EUR/GBP display currency and a markets strip with Nifty 50, S&P 500, Nasdaq 100 and Dow Jones trackers.
 - **Portfolio tracking** – record buys and sells (with fees and trade dates). Holdings, average cost, realized and unrealized P&L are computed from your trade ledger using exact decimal arithmetic. Totals are kept separate per currency (e.g. USD and INR are never summed).
+- **Practice Coach** – learn by doing with pretend money (₹1,00,000 by default) at real prices:
+  - every trade records *why* you made it (research, chart, news, tip, gut feeling…), and a scoreboard shows which reasons actually made money;
+  - a "mirror" account invests the same rupees on the same dates in the Nifty 50, so you always see whether your decisions beat simply buying the index;
+  - behaviour checks flag overtrading, chasing rallies, panic selling, concentration, holding losers too long, tip-driven trades and costs, each linked to a short plain-language lesson.
+- **Quant Lab** – the research tools systematic traders use, built to be honest rather than flattering:
+  - **Backtester** with 8 strategies (trend, breakout, momentum, MACD, RSI and Bollinger mean reversion, trend + volatility targeting, buy-and-hold baseline). Trades execute at the next day's open with commission and slippage; every signal is tested to use only past data.
+  - **Out-of-sample testing, parameter optimisation and walk-forward analysis.** Parameters are tuned on in-sample data only; the result reports the Sharpe you would expect from luck after N trials, the t-statistic, and a plain verdict (no edge / inconclusive / promising) against buy-and-hold.
+  - **Portfolio risk**: volatility, 1-day VaR and expected shortfall in money, max drawdown, beta, correlation matrix, each position's share of total risk and the effective number of independent bets.
+  - **Optimizer**: equal weight, inverse volatility, risk parity, minimum variance and maximum Sharpe (with shrunk estimates and weight caps), with suggested buy/sell amounts.
+  - **Scanner**: ranks your watchlist and holdings by momentum, trend agreement and volatility.
 - **Watchlist** – live quotes for stocks and crypto.
 - **Technical analysis** – SMA 20/50, RSI 14, MACD (12, 26, 9), Bollinger Bands (20, 2), ATR 14 and volume computed from real daily price history, plus a rule-based signal summary.
 - **Price alerts** – price above/below or daily % change, evaluated in the background against live quotes.
@@ -56,6 +66,11 @@ to Alpha Vantage for such symbols, which works for many BSE listings (`RELIANCE.
 (25 requests/day) but not for NSE. For full Indian coverage, upgrade Twelve Data or ask for a broker-API
 integration. The dashboard's Nifty 50 tile (`NIFTYBEES.NSE`) shows "Needs a paid data plan" on the free
 plan; remove it with the `MARKET_INDICES` setting if you prefer.
+
+**Automatic BSE substitution.** If an `.NSE` symbol (or a bare name such as `RELIANCE`) can't be
+loaded on your plan, the app tries the same company's `.BSE` listing and says so on screen
+("Showing TCS.BSE (BSE listing) because TCS.NSE could not be loaded…"). Prices on the two
+exchanges are very close but not identical.
 
 **Symbols for non-US stocks** carry an exchange suffix: `TCS.NSE`, `RELIANCE.BSE`,
 `VOD.LON`. The search box fills these in for you with Twelve Data, and the
@@ -120,6 +135,8 @@ All backend settings are environment variables, validated at start-up
 | `CORS_ORIGINS` | no | Only if the frontend is hosted on a different origin |
 | `TWELVE_DATA_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `FINNHUB_API_KEY`, `COINGECKO_API_KEY` | see above | Market data |
 | `STOCK_QUOTE_CACHE_SECONDS` | no | How long stock quotes are reused (default 120) |
+| `COACH_STARTING_CASH`, `COACH_CURRENCY`, `COACH_FEE_BPS` | no | Practice account size (100000), currency (INR) and costs per trade (10 bps = 0.1%) |
+| `COACH_BENCHMARK_INR`, `COACH_BENCHMARK_USD` | no | Index used for the mirror (NIFTYBEES.NSE / SPY) |
 | `MARKET_INDICES` | no | Dashboard indices as `Label=SYMBOL,…` (defaults to SPY, QQQ, DIA and the Nifty 50 ETF) |
 | `ALERT_CHECK_INTERVAL_SECONDS` | no | Alert evaluation interval (default 300, `0` disables) |
 | `MIGRATE_ON_START` | no | Set `false` to run `npm run migrate` as a separate deploy step |
@@ -163,6 +180,15 @@ All endpoints are under `/api` and return JSON. Errors look like
 | `GET` | `/portfolio?currency=` | Valued positions, per-currency totals and (optionally) a combined total in one currency |
 | `GET` `POST` | `/portfolio/transactions` | Trade history (paginated) / record a trade |
 | `DELETE` | `/portfolio/transactions/:id` | Delete a trade (holdings are recomputed) |
+| `GET` | `/coach/account` | Practice account value, positions and the index mirror |
+| `POST` | `/coach/orders` | `{ assetType, symbol, side, amount \| quantity \| all, reason, confidence?, note? }` — practice order at the latest price |
+| `GET` | `/coach/trades`, `/coach/insights`, `/coach/lessons` | Journal, behaviour checks + reason scoreboard, lesson library |
+| `POST` | `/coach/reset` | `{ confirm: true, currency?: INR \| USD }` — start over |
+| `GET` | `/quant/strategies` | Strategy catalogue with parameters, plus optimiser methods |
+| `POST` | `/quant/backtest` | `{ assetType, symbol, strategy, params?, mode: evaluate \| optimize \| walk_forward, split?, commissionBps?, slippageBps? }` |
+| `GET` | `/quant/risk?currency=&benchmark=` | Risk report for your open positions |
+| `GET` | `/quant/optimize?method=&maxWeight=&include=holdings\|watchlist&currency=` | Suggested weights and rebalancing amounts |
+| `GET` | `/quant/scan?limit=` | Ranked scan of watchlist and holdings |
 | `GET` `POST` | `/alerts` | List / create |
 | `PATCH` `DELETE` | `/alerts/:id` | Update, pause/re-arm / delete |
 | `POST` | `/alerts/check` | Evaluate your alerts now |
@@ -203,6 +229,15 @@ v2 is a rewrite with a new schema (`users`, `holdings`, `transactions`,
 Point it at a **new, empty database**; the old `stock_crypto_db` schema is not
 migrated automatically. The old JWT-in-`localStorage` sessions are not
 compatible, so users need to sign in again.
+
+## About the Quant Lab results
+
+No backtest can promise future profits, and most strategies that look good in a backtest fail live.
+The Quant Lab is built to expose that: costs are charged, parameters never see out-of-sample data,
+walk-forward analysis re-optimises on rolling windows, and every result shows its t-statistic and how
+it compares with simply holding the asset. Treat a "promising" verdict as a reason to research further,
+not as a trading signal. Data history depends on your provider (about 6 years of stocks with Twelve Data,
+1 year of crypto from CoinGecko, 100 days with Alpha Vantage's free tier — too short for backtests).
 
 ## Known limitations
 

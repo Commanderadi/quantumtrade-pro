@@ -60,9 +60,14 @@ function marketRouter({ market }) {
     router.get('/analysis/:assetType/:symbol', validate({ params: withSymbol() }), async (req, res) => {
         const { assetType: type, symbol } = req.valid.params;
         const history = await market.getDailyCandles(type, symbol);
-        const { series, summary } = analyze(history.candles);
+        const analysis = analyze(history.candles);
+        // Indicators are computed on the full history; only the most recent bars are sent to the chart.
+        const series = analysis.series.slice(-500);
+        const summary = analysis.summary;
         res.json({
-            symbol,
+            symbol: history.symbol ?? symbol,
+            requestedSymbol: symbol,
+            note: history.note ?? null,
             assetType: type,
             currency: history.currency,
             source: history.source,

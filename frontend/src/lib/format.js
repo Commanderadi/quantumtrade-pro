@@ -67,3 +67,13 @@ export const ALERT_CONDITIONS = {
     change_pct_above: 'Daily change ≥ (%)',
     change_pct_below: 'Daily change ≤ (%)',
 };
+
+/** Formats a FRACTION (0.123) as a percentage ("12.3%"). */
+export function formatFraction(value, { dp = 1, signed = false } = {}) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+    let n = Number(value) * 100;
+    if (Math.abs(n) < 0.5 / 10 ** dp) n = 0; // avoid "-0.0%"
+    return `${signed && n > 0 ? '+' : ''}${n.toFixed(dp)}%`;
+}
+
+export const formatRatio = (value, dp = 2) => (value === null || value === undefined || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(dp));

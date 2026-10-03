@@ -121,4 +121,55 @@ describe('App', () => {
         expect(portfolioCall[0]).toBe('/api/portfolio?currency=INR');
         localStorage.removeItem('quantumtrade-display-currency');
     });
+
+    it('tells the user when another listing was used for the symbol they looked up', async () => {
+        mockApi({
+            'GET /auth/me': () => [200, { user }],
+            ...signedInHandlers,
+            'GET /market/quote/stock/TCS.NSE': () => [200, { quote: {
+                symbol: 'TCS.BSE', resolvedFrom: 'TCS.NSE', currency: 'INR', price: 3900, changePercent: 0.5, asOf: '2024-05-01T00:00:00Z', source: 'Alpha Vantage',
+                open: null, high: null, low: null, previousClose: null, volume: null,
+                note: 'Showing TCS.BSE (BSE listing) because TCS.NSE could not be loaded on your data plan.',
+            } }],
+        });
+        renderApp('/markets?type=stock&symbol=TCS.NSE');
+        expect(await screen.findByText(/Showing TCS\.BSE \(BSE listing\)/)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'TCS.BSE' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Analyze/ })).toHaveAttribute('href', '/analysis/stock/TCS.BSE');
+    });
+
+    it('practice coach: requires a reason and confirms the fill', async () => {
+        const account = {
+            account: { currency: 'INR', startingCash: 100000, cash: 100000, investedValue: 0, totalValue: 100000, totalReturn: 0, totalReturnPct: 0, realizedPnl: 0, unrealizedPnl: 0, feesPaid: 0, tradeCount: 0, feeBps: 10 },
+            mirror: { symbol: 'NIFTYBEES.NSE', label: 'Nifty 50', value: 100000, returnPct: 0, complete: true, available: true },
+            positions: [],
+        };
+        let sent = null;
+        mockApi({
+            'GET /auth/me': () => [200, { user }],
+            'GET /coach/account': () => [200, account],
+            'GET /coach/insights': () => [200, { behaviours: [], reasons: [], lessons: [{ id: 'start_here', title: 'How to use your practice account', body: ['You have practice money.', 'Say why.'] }] }],
+            'GET /coach/trades': () => [200, { trades: [] }],
+            'GET /coach/lessons': () => [200, { lessons: [] }],
+            'POST /coach/orders': (body) => {
+                sent = body;
+                return [201, { trade: { id: 1, symbol: 'AAPL', side: 'buy', quantity: '1.00000000', price: 200, priceCurrency: 'USD', grossAmount: '16000.00000000', fee: '16.00000000', realizedPnl: null }, note: null }];
+            },
+        });
+        renderApp('/coach');
+        expect(await screen.findByRole('heading', { name: 'Practice Coach' })).toBeInTheDocument();
+        expect(screen.getByText('If you had bought the Nifty 50 instead')).toBeInTheDocument();
+        expect(screen.getByText('New here? Start with this')).toBeInTheDocument();
+
+        await userEvent.type(screen.getByLabelText('Symbol'), 'AAPL');
+        await userEvent.type(screen.getByLabelText(/Amount to invest/), '20000');
+        await userEvent.click(screen.getByRole('button', { name: 'Place practice buy' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(/Choose why/);
+        expect(sent).toBeNull();
+
+        await userEvent.click(screen.getByLabelText('My own research'));
+        await userEvent.click(screen.getByRole('button', { name: 'Place practice buy' }));
+        expect(await screen.findByText(/Bought 1 AAPL/)).toBeInTheDocument();
+        expect(sent).toEqual({ assetType: 'stock', symbol: 'AAPL', side: 'buy', reason: 'research', amount: 20000 });
+    });
 });

@@ -44,6 +44,13 @@ const schema = z.object({
         .default('S&P 500 (SPY ETF)=SPY,Nasdaq 100 (QQQ ETF)=QQQ,Dow Jones (DIA ETF)=DIA,Nifty 50 (NIFTYBEES ETF)=NIFTYBEES.NSE'),
 
     ALERT_CHECK_INTERVAL_SECONDS: z.coerce.number().int().min(0).default(300),
+
+    // Coach (practice trading). Practice money only; costs approximate brokerage + charges.
+    COACH_STARTING_CASH: z.coerce.number().positive().max(1e9).default(100_000),
+    COACH_CURRENCY: z.enum(['INR', 'USD']).default('INR'),
+    COACH_FEE_BPS: z.coerce.number().min(0).max(200).default(10),
+    COACH_BENCHMARK_INR: z.string().trim().toUpperCase().default('NIFTYBEES.NSE'),
+    COACH_BENCHMARK_USD: z.string().trim().toUpperCase().default('SPY'),
 });
 
 function loadEnv(source = process.env) {
