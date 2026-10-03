@@ -15,6 +15,7 @@ const Markets = lazy(() => import('./pages/Markets'));
 const Analysis = lazy(() => import('./pages/Analysis'));
 const AlertsPage = lazy(() => import('./pages/AlertsPage'));
 const QuantLab = lazy(() => import('./pages/QuantLab'));
+const CoachPage = lazy(() => import('./pages/CoachPage'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -45,6 +46,7 @@ export function AppRoutes() {
                     <Route path="markets" element={<Markets />} />
                     <Route path="analysis" element={<Analysis />} />
                     <Route path="analysis/:assetType/:symbol" element={<Analysis />} />
+                    <Route path="coach" element={<CoachPage />} />
                     <Route path="quant" element={<QuantLab />} />
                     <Route path="alerts" element={<AlertsPage />} />
                     <Route path="settings" element={<Settings />} />

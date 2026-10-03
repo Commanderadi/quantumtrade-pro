@@ -71,7 +71,8 @@ export const ALERT_CONDITIONS = {
 /** Formats a FRACTION (0.123) as a percentage ("12.3%"). */
 export function formatFraction(value, { dp = 1, signed = false } = {}) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) return '—';
-    const n = Number(value) * 100;
+    let n = Number(value) * 100;
+    if (Math.abs(n) < 0.5 / 10 ** dp) n = 0; // avoid "-0.0%"
     return `${signed && n > 0 ? '+' : ''}${n.toFixed(dp)}%`;
 }
 

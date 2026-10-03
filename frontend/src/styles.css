@@ -1069,3 +1069,114 @@ input[type='checkbox'] {
     border: 2px solid var(--surface) !important;
     color: var(--text);
 }
+
+/* ------------------------------------------------------------------ coach */
+.reason-picker {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+.reason-picker legend {
+    font-size: 0.88rem;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+}
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.form .chip {
+    flex-direction: row;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--surface-2);
+}
+.chip input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+.chip:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.form .chip.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.insights {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.insight {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: var(--radius-sm);
+}
+.insight-warning {
+    border-left-color: var(--warn);
+}
+.insight-info {
+    border-left-color: var(--accent);
+}
+.insight-good {
+    border-left-color: var(--up);
+}
+.lesson {
+    border-top: 1px solid var(--border);
+    padding: 0.5rem 0;
+}
+.insight .lesson {
+    border-top: none;
+    padding: 0.2rem 0 0;
+}
+.lesson summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--accent);
+}
+.lesson p {
+    margin: 0.4rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+.lesson .lesson-title {
+    color: var(--text);
+    font-weight: 600;
+}
+.mirror-verdict {
+    margin: 0;
+    font-weight: 600;
+}
+.reset-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+}
+
+.form label.checkbox {
+    flex-direction: row;
+    align-items: center;
+    align-self: end;
+    padding-bottom: 0.6rem;
+}

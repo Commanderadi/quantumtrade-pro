@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMoney, formatPercent, formatQuantity, formatSignedMoney, trendClass } from './format';
+import { formatFraction, formatMoney, formatPercent, formatQuantity, formatSignedMoney, trendClass } from './format';
 
 describe('format helpers', () => {
     it('formats money with currency and extra precision for sub-unit prices', () => {
@@ -13,6 +13,13 @@ describe('format helpers', () => {
         expect(formatPercent(1.234)).toBe('+1.23%');
         expect(formatPercent(-0.5)).toBe('-0.50%');
         expect(formatSignedMoney(5, 'USD')).toMatch(/^\+/);
+    });
+
+    it('formats fractions as percentages without a negative zero', () => {
+        expect(formatFraction(0.1234)).toBe('12.3%');
+        expect(formatFraction(0.05, { signed: true })).toBe('+5.0%');
+        expect(formatFraction(-0.0000001)).toBe('0.0%');
+        expect(formatFraction(null)).toBe('—');
     });
 
     it('trims trailing zeros from quantities', () => {

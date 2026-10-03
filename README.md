@@ -6,6 +6,10 @@ web app.
 
 - **India and the world** – NSE/BSE and international stocks (via Twelve Data), crypto, INR/USD/EUR/GBP display currency and a markets strip with Nifty 50, S&P 500, Nasdaq 100 and Dow Jones trackers.
 - **Portfolio tracking** – record buys and sells (with fees and trade dates). Holdings, average cost, realized and unrealized P&L are computed from your trade ledger using exact decimal arithmetic. Totals are kept separate per currency (e.g. USD and INR are never summed).
+- **Practice Coach** – learn by doing with pretend money (₹1,00,000 by default) at real prices:
+  - every trade records *why* you made it (research, chart, news, tip, gut feeling…), and a scoreboard shows which reasons actually made money;
+  - a "mirror" account invests the same rupees on the same dates in the Nifty 50, so you always see whether your decisions beat simply buying the index;
+  - behaviour checks flag overtrading, chasing rallies, panic selling, concentration, holding losers too long, tip-driven trades and costs, each linked to a short plain-language lesson.
 - **Quant Lab** – the research tools systematic traders use, built to be honest rather than flattering:
   - **Backtester** with 8 strategies (trend, breakout, momentum, MACD, RSI and Bollinger mean reversion, trend + volatility targeting, buy-and-hold baseline). Trades execute at the next day's open with commission and slippage; every signal is tested to use only past data.
   - **Out-of-sample testing, parameter optimisation and walk-forward analysis.** Parameters are tuned on in-sample data only; the result reports the Sharpe you would expect from luck after N trials, the t-statistic, and a plain verdict (no edge / inconclusive / promising) against buy-and-hold.
@@ -131,6 +135,8 @@ All backend settings are environment variables, validated at start-up
 | `CORS_ORIGINS` | no | Only if the frontend is hosted on a different origin |
 | `TWELVE_DATA_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `FINNHUB_API_KEY`, `COINGECKO_API_KEY` | see above | Market data |
 | `STOCK_QUOTE_CACHE_SECONDS` | no | How long stock quotes are reused (default 120) |
+| `COACH_STARTING_CASH`, `COACH_CURRENCY`, `COACH_FEE_BPS` | no | Practice account size (100000), currency (INR) and costs per trade (10 bps = 0.1%) |
+| `COACH_BENCHMARK_INR`, `COACH_BENCHMARK_USD` | no | Index used for the mirror (NIFTYBEES.NSE / SPY) |
 | `MARKET_INDICES` | no | Dashboard indices as `Label=SYMBOL,…` (defaults to SPY, QQQ, DIA and the Nifty 50 ETF) |
 | `ALERT_CHECK_INTERVAL_SECONDS` | no | Alert evaluation interval (default 300, `0` disables) |
 | `MIGRATE_ON_START` | no | Set `false` to run `npm run migrate` as a separate deploy step |
@@ -174,6 +180,10 @@ All endpoints are under `/api` and return JSON. Errors look like
 | `GET` | `/portfolio?currency=` | Valued positions, per-currency totals and (optionally) a combined total in one currency |
 | `GET` `POST` | `/portfolio/transactions` | Trade history (paginated) / record a trade |
 | `DELETE` | `/portfolio/transactions/:id` | Delete a trade (holdings are recomputed) |
+| `GET` | `/coach/account` | Practice account value, positions and the index mirror |
+| `POST` | `/coach/orders` | `{ assetType, symbol, side, amount \| quantity \| all, reason, confidence?, note? }` — practice order at the latest price |
+| `GET` | `/coach/trades`, `/coach/insights`, `/coach/lessons` | Journal, behaviour checks + reason scoreboard, lesson library |
+| `POST` | `/coach/reset` | `{ confirm: true, currency?: INR \| USD }` — start over |
 | `GET` | `/quant/strategies` | Strategy catalogue with parameters, plus optimiser methods |
 | `POST` | `/quant/backtest` | `{ assetType, symbol, strategy, params?, mode: evaluate \| optimize \| walk_forward, split?, commissionBps?, slippageBps? }` |
 | `GET` | `/quant/risk?currency=&benchmark=` | Risk report for your open positions |

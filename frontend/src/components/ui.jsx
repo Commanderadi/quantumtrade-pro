@@ -39,7 +39,8 @@ export function ErrorMessage({ error, onRetry }) {
 }
 
 export function Notice({ children, tone = 'info' }) {
-    return <div className={`alert alert-${tone}`}>{children}</div>;
+    // A single wrapper keeps mixed text and inline elements together inside the flex container.
+    return <div className={`alert alert-${tone}`}><div>{children}</div></div>;
 }
 
 export function EmptyState({ title, children }) {

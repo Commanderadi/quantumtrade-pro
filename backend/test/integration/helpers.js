@@ -23,13 +23,14 @@ const dbConfig = {
 /** Deterministic stand-in for the market data providers. */
 function createFakeMarket() {
     const prices = {
-        stock: { AAPL: { price: 200, change: 2, changePercent: 1 }, MSFT: { price: 400, change: -4, changePercent: -1 }, SPY: { price: 500, change: 1, changePercent: 0.2 }, SHORT: { price: 10, change: 0, changePercent: 0 } },
+        stock: { AAPL: { price: 200, change: 2, changePercent: 1 }, MSFT: { price: 400, change: -4, changePercent: -1 }, SPY: { price: 500, change: 1, changePercent: 0.2 }, SHORT: { price: 10, change: 0, changePercent: 0 }, 'NIFTYBEES.NSE': { price: 250, change: 1, changePercent: 0.4 } },
         crypto: { BTC: { price: 60000, change: 600, changePercent: 1 }, ETH: { price: 3000, change: -90, changePercent: -3 } },
     };
     const quote = (type, symbol) => {
         const p = prices[type][symbol];
         if (!p) throw notFound(`No quote found for ${symbol}`);
-        return { symbol, assetType: type, currency: 'USD', ...p, asOf: new Date().toISOString(), source: 'test' };
+        const currency = /\.(NSE|BSE)$/.test(symbol) ? 'INR' : 'USD';
+        return { symbol, assetType: type, currency, ...p, asOf: new Date().toISOString(), source: 'test' };
     };
     return {
         prices,

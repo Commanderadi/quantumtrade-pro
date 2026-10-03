@@ -19,6 +19,8 @@ const { watchlistRouter } = require('./routes/watchlist');
 const { portfolioRouter } = require('./routes/portfolio');
 const { alertsRouter } = require('./routes/alerts');
 const { quantRouter } = require('./routes/quant');
+const { coachRouter } = require('./routes/coach');
+const { createCoach } = require('./services/coach/account');
 
 /**
  * Builds the Express app. Dependencies are injected so tests can supply a
@@ -103,6 +105,7 @@ function createApp({ env, db, market, logger, staticDir }) {
     app.use('/api/portfolio', auth, portfolioRouter({ db, market }));
     app.use('/api/alerts', auth, alertsRouter({ db, market, logger, alertCheckLimiter }));
     app.use('/api/quant', auth, quantRouter({ db, market, quantLimiter }));
+    app.use('/api/coach', auth, coachRouter({ coach: createCoach({ env, db, market }), quantLimiter }));
     app.use('/api', notFoundHandler);
 
     // Optionally serve the built frontend from the same origin (single-container deploys).
